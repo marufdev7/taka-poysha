@@ -331,7 +331,7 @@ export default function HomePage() {
           </div>
 
           {household && (
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 sm:p-4 border border-white/20 flex items-center gap-3">
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 sm:p-4 border border-white/20 flex items-center justify-between sm:justify-start gap-3 w-full md:w-auto">
               <div>
                 <div className="text-[11px] text-emerald-100 font-medium">ফ্যামিলি ইনভাইট কোড</div>
                 <div className="text-sm sm:text-base font-bold font-mono tracking-wider">
@@ -350,10 +350,10 @@ export default function HomePage() {
         </div>
 
         {/* Top Navigation Tabs Bar */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-6 scrollbar-none border-b border-slate-200">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-6 no-scrollbar border-b border-slate-200">
           <button
             onClick={() => setActiveTab('dashboard')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-semibold transition shrink-0 ${
+            className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-semibold transition shrink-0 ${
               activeTab === 'dashboard'
                 ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
                 : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50'
@@ -365,7 +365,7 @@ export default function HomePage() {
 
           <button
             onClick={() => setActiveTab('transactions')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-semibold transition shrink-0 ${
+            className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-semibold transition shrink-0 ${
               activeTab === 'transactions'
                 ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
                 : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50'
@@ -384,7 +384,7 @@ export default function HomePage() {
 
           <button
             onClick={() => setActiveTab('debts')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-semibold transition shrink-0 ${
+            className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-semibold transition shrink-0 ${
               activeTab === 'debts'
                 ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
                 : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50'
@@ -407,7 +407,7 @@ export default function HomePage() {
 
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-semibold transition shrink-0 ${
+            className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-semibold transition shrink-0 ${
               activeTab === 'analytics'
                 ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
                 : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50'
@@ -558,10 +558,11 @@ export default function HomePage() {
       />
 
       {/* Floating Mobile Add Button */}
-      <div className="fixed bottom-5 right-5 sm:hidden z-30">
+      <div className="fixed bottom-5 right-4 sm:hidden z-30">
         <button
           onClick={handleOpenManualAddModal}
-          className="w-14 h-14 rounded-full bg-emerald-600 text-white shadow-xl shadow-emerald-600/40 flex items-center justify-center font-bold text-2xl hover:scale-105 active:scale-95 transition"
+          className="w-12 h-12 rounded-full bg-emerald-600 text-white shadow-xl shadow-emerald-600/40 flex items-center justify-center font-bold text-2xl hover:scale-105 active:scale-95 transition cursor-pointer"
+          title="নতুন লেনদেন যোগ করুন"
         >
           +
         </button>

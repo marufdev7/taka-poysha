@@ -249,35 +249,35 @@ export function AddTransactionModal({
         </div>
 
         {/* Type Selector Tabs */}
-        <div className="grid grid-cols-3 gap-2 mt-4 p-1 bg-slate-100 rounded-xl">
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2 mt-4 p-1 bg-slate-100 rounded-xl">
           <button
             type="button"
             onClick={() => setType('EXPENSE')}
-            className={`flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition ${
+            className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 text-xs font-semibold rounded-lg transition ${
               type === 'EXPENSE'
                 ? 'bg-rose-600 text-white shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <TrendingDown className="w-3.5 h-3.5" />
-            <span>ব্যয় (Expense)</span>
+            <span>ব্যয় <span className="hidden sm:inline">(Expense)</span></span>
           </button>
           <button
             type="button"
             onClick={() => setType('INCOME')}
-            className={`flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition ${
+            className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 text-xs font-semibold rounded-lg transition ${
               type === 'INCOME'
                 ? 'bg-emerald-600 text-white shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <TrendingUp className="w-3.5 h-3.5" />
-            <span>আয় (Income)</span>
+            <span>আয় <span className="hidden sm:inline">(Income)</span></span>
           </button>
           <button
             type="button"
             onClick={() => setType('TRANSFER')}
-            className={`flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition ${
+            className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 text-xs font-semibold rounded-lg transition ${
               type === 'TRANSFER'
                 ? 'bg-indigo-600 text-white shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'

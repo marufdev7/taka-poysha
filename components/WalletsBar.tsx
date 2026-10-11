@@ -260,19 +260,19 @@ export function WalletsBar({
             key={acc.id}
             className="p-3 rounded-xl border border-slate-100 bg-slate-50/70 hover:bg-slate-50 transition relative group"
           >
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs text-slate-600 font-medium truncate max-w-[80px]" title={acc.name}>
+            <div className="flex items-center justify-between mb-1.5 gap-1">
+              <span className="text-xs text-slate-600 font-medium truncate flex-1 min-w-0" title={acc.name}>
                 {acc.name}
               </span>
-              <div className="flex items-center gap-1">
-                {/* Actions on hover */}
+              <div className="flex items-center gap-1 shrink-0">
+                {/* Actions: visible on mobile, hover on desktop */}
                 <button
                   onClick={() => {
                     setEditingAccount(acc);
                     setEditName(acc.name);
                     setEditBalance(acc.balance.toString());
                   }}
-                  className="p-1 text-slate-300 hover:text-emerald-600 hover:bg-emerald-50 rounded transition opacity-0 group-hover:opacity-100"
+                  className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition opacity-80 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100"
                   title="এডিট করুন"
                 >
                   <Pencil className="w-3 h-3" />
@@ -280,7 +280,7 @@ export function WalletsBar({
                 <button
                   onClick={() => handleDeleteAccount(acc.id, acc.name)}
                   disabled={deletingAccountId === acc.id}
-                  className="p-1 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded transition opacity-0 group-hover:opacity-100"
+                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition opacity-80 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100"
                   title="মুছে ফেলুন"
                 >
                   <Trash2 className="w-3 h-3" />

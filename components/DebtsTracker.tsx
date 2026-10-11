@@ -327,7 +327,7 @@ export function DebtsTracker({
                   <button
                     onClick={() => handleDelete(d.id)}
                     disabled={actionLoadingId === d.id}
-                    className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition opacity-0 group-hover:opacity-100 focus:opacity-100"
+                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition opacity-80 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100"
                     title="মুছে ফেলুন"
                   >
                     <Trash2 className="w-4 h-4" />
