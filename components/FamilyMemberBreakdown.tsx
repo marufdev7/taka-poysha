@@ -33,6 +33,7 @@ export function FamilyMemberBreakdown({
   const [showAddMember, setShowAddMember] = useState(false);
   const [memberName, setMemberName] = useState('');
   const [memberRole, setMemberRole] = useState('MEMBER');
+  const [memberPin, setMemberPin] = useState('1234');
   const [loading, setLoading] = useState(false);
 
   const handleRemoveMember = async (userId: string, name: string) => {
@@ -54,7 +55,10 @@ export function FamilyMemberBreakdown({
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!memberName.trim()) return;
+    if (!memberName.trim() || memberPin.trim().length < 4) {
+      alert('সদস্যের নাম ও কমপক্ষে ৪ সংখ্যার পিন দিন');
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch('/api/household/member', {
@@ -64,10 +68,12 @@ export function FamilyMemberBreakdown({
           householdId,
           name: memberName.trim(),
           role: memberRole,
+          pin: memberPin.trim(),
         }),
       });
       if (res.ok) {
         setMemberName('');
+        setMemberPin('1234');
         setShowAddMember(false);
         onRefresh();
       } else {
@@ -212,6 +218,25 @@ export function FamilyMemberBreakdown({
                   <option value="MEMBER">নিয়মিত সদস্য (আয়-ব্যয় এন্ট্রি করতে পারবে)</option>
                   <option value="VIEW_ONLY">শুধু দেখতে পারবে (View Only)</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  লগইন সিকিউরিটি পিন (কমপক্ষে ৪ সংখ্যা) *
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="যেমন: 1234"
+                  value={memberPin}
+                  onChange={(e) => setMemberPin(e.target.value)}
+                  className="w-full text-sm px-3 py-2 border border-slate-200 rounded-xl focus:outline-indigo-500 font-mono tracking-widest"
+                  required
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  💡 সদস্য তার নামের পাশে এই পিন দিয়ে অ্যাকাউন্টে লগইন করতে পারবেন।
+                </p>
               </div>
 
               <div className="flex gap-2 pt-2">

@@ -27,10 +27,40 @@ export async function GET(request: Request) {
       });
     }
 
-    // Determine current active user
-    const currentUser = requestedUserId
-      ? users.find((u) => u.id === requestedUserId) || users[0]
-      : users[0];
+    if (!requestedUserId) {
+      return NextResponse.json({
+        authenticated: false,
+        currentUser: null,
+        users: [],
+        household: null,
+        accounts: [],
+        categories: [],
+        budgets: [],
+        transactions: [],
+        debts: [],
+        aiReports: [],
+      });
+    }
+
+    const currentUser = users.find((u) => u.id === requestedUserId);
+    if (!currentUser) {
+      return NextResponse.json(
+        {
+          authenticated: false,
+          error: 'ব্যবহারকারী খুঁজে পাওয়া যায়নি বা সেশন সমাপ্ত হয়েছে',
+          currentUser: null,
+          users: [],
+          household: null,
+          accounts: [],
+          categories: [],
+          budgets: [],
+          transactions: [],
+          debts: [],
+          aiReports: [],
+        },
+        { status: 401 }
+      );
+    }
 
     // Fetch household for this user
     const membership = await prisma.householdMember.findFirst({
@@ -91,6 +121,7 @@ export async function GET(request: Request) {
     });
 
     return NextResponse.json({
+      authenticated: true,
       currentUser,
       users,
       household,

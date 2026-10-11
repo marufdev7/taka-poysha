@@ -10,6 +10,7 @@ import {
   ChevronDown,
   Sparkles,
   Bot,
+  LogOut,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -25,6 +26,7 @@ interface NavbarProps {
   onOpenAiChat?: () => void;
   onResetData: () => void;
   onOpenEditProfile: () => void;
+  onLogout?: () => void;
 }
 
 export function Navbar({
@@ -40,6 +42,7 @@ export function Navbar({
   onOpenAiChat,
   onResetData,
   onOpenEditProfile,
+  onLogout,
 }: NavbarProps) {
   return (
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200">
@@ -173,6 +176,15 @@ export function Navbar({
                   >
                     <span>🗑️ সব ডাটা মুছুন (রিসেট)</span>
                   </button>
+                  {onLogout && (
+                    <button
+                      onClick={onLogout}
+                      className="w-full text-left px-3 py-1.5 text-xs text-slate-600 hover:text-rose-600 hover:bg-slate-50 flex items-center gap-1.5 transition font-semibold border-t border-slate-100 mt-1 pt-1.5"
+                    >
+                      <LogOut className="w-3.5 h-3.5 text-slate-400" />
+                      <span>লক / লগআউট (Logout)</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

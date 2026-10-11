@@ -18,6 +18,7 @@ import { AddDebtModal } from '@/components/AddDebtModal';
 import { DailyAndIncomeBreakdown } from '@/components/DailyAndIncomeBreakdown';
 import { RecentTransactionsPreview } from '@/components/RecentTransactionsPreview';
 import { AiChatbot } from '@/components/AiChatbot';
+import { AuthGate } from '@/components/AuthGate';
 import { Users, Copy, Check, Sparkles, LayoutDashboard, Receipt, HandCoins, BarChart3 } from 'lucide-react';
 import { isSameDay, toBengaliNumerals } from '@/lib/utils';
 import {
@@ -29,6 +30,8 @@ import {
 export default function HomePage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [activeUserId, setActiveUserId] = useState<string>('');
   const [isFamilyView, setIsFamilyView] = useState(true);
   const [useBengaliDigits, setUseBengaliDigits] = useState(false);
@@ -45,27 +48,65 @@ export default function HomePage() {
   // Auto Expense Popup State (twice a day)
   const [autoPopupSlot, setAutoPopupSlot] = useState<number | null>(null);
 
+  // Check saved session on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedId = localStorage.getItem('auth_user_id');
+      if (savedId) {
+        setAuthUserId(savedId);
+        setActiveUserId(savedId);
+      }
+      setAuthChecked(true);
+    }
+  }, []);
+
   const fetchData = useCallback(async (userId?: string) => {
+    const targetUserId =
+      userId ||
+      authUserId ||
+      (typeof window !== 'undefined' ? localStorage.getItem('auth_user_id') : null);
+
+    if (!targetUserId) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      const url = userId ? `/api/data?userId=${userId}` : '/api/data';
+      const url = `/api/data?userId=${targetUserId}`;
       const res = await fetch(url);
       if (res.ok) {
         const json = await res.json();
-        setData(json);
-        if (!activeUserId && json.currentUser) {
+        if (json.authenticated === false || !json.currentUser) {
+          setAuthUserId(null);
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('auth_user_id');
+          }
+          setData(null);
+        } else {
+          setData(json);
           setActiveUserId(json.currentUser.id);
         }
+      } else {
+        setAuthUserId(null);
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('auth_user_id');
+        }
+        setData(null);
       }
     } catch (err) {
       console.error('Failed to load data:', err);
     } finally {
       setLoading(false);
     }
-  }, [activeUserId]);
+  }, [authUserId]);
 
   useEffect(() => {
-    fetchData(activeUserId);
-  }, [activeUserId, fetchData]);
+    if (authChecked && authUserId) {
+      fetchData(authUserId);
+    } else if (authChecked && !authUserId) {
+      setLoading(false);
+    }
+  }, [authChecked, authUserId, fetchData]);
 
   // Check and trigger 2-times-a-day auto expense popup
   useEffect(() => {
@@ -144,12 +185,21 @@ export default function HomePage() {
     }
   };
 
-  if (loading) {
+  const handleLogout = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('auth_user_id');
+      localStorage.removeItem('auth_user_name');
+    }
+    setAuthUserId(null);
+    setData(null);
+  };
+
+  if (!authChecked || (authUserId && loading)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm font-semibold text-slate-600 font-['Hind_Siliguri',sans-serif]">
+          <p className="text-sm font-semibold text-emerald-400 font-['Hind_Siliguri',sans-serif]">
             টাকা-পয়সা লোড হচ্ছে...
           </p>
         </div>
@@ -157,9 +207,23 @@ export default function HomePage() {
     );
   }
 
+  // If not authenticated or not logged in, show AuthGate (Lock screen)
+  if (!authUserId || !data?.currentUser || data?.authenticated === false) {
+    return (
+      <AuthGate
+        onLoginSuccess={(userId) => {
+          setAuthUserId(userId);
+          setActiveUserId(userId);
+          setLoading(true);
+          fetchData(userId);
+        }}
+      />
+    );
+  }
+
   // If there are no users, show the fresh clean Onboarding setup screen
-  if (data?.isNewUser || !data?.currentUser) {
-    return <OnboardingSetup onSuccess={() => fetchData()} />;
+  if (data?.isNewUser) {
+    return <OnboardingSetup onSuccess={() => fetchData(authUserId)} />;
   }
 
   const { currentUser, users, household, accounts, categories, budgets, transactions, debts = [], aiReports } =
@@ -233,6 +297,7 @@ export default function HomePage() {
         onOpenAiChat={() => setIsAiChatOpen(true)}
         onResetData={handleReset}
         onOpenEditProfile={() => setIsEditProfileOpen(true)}
+        onLogout={handleLogout}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">

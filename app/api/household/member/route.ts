@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { householdId, name, role = 'MEMBER' } = body;
+    const { householdId, name, role = 'MEMBER', pin } = body;
 
     if (!householdId || !name || !name.trim()) {
       return NextResponse.json({ error: 'সদস্যের নাম ও পরিবার আবশ্যক' }, { status: 400 });
@@ -17,6 +17,7 @@ export async function POST(request: Request) {
       data: {
         name: name.trim(),
         email: `${Date.now()}@local.app`,
+        pin: pin && String(pin).trim().length >= 4 ? String(pin).trim() : '1234',
       },
     });
 

@@ -37,3 +37,5 @@ next-env.d.ts
 prisma/*.db
 prisma/*.db-journal
 prisma/*.json
+prisma/*.py
+prisma/import_to_postgres.js
