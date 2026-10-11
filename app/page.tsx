@@ -33,7 +33,7 @@ export default function HomePage() {
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [activeUserId, setActiveUserId] = useState<string>('');
-  const [isFamilyView, setIsFamilyView] = useState(true);
+  const [isFamilyView, setIsFamilyView] = useState(false);
   const [useBengaliDigits, setUseBengaliDigits] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'debts' | 'analytics'>('dashboard');
 
