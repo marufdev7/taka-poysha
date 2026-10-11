@@ -131,3 +131,117 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json();
+    const {
+      id,
+      userId,
+      accountId,
+      toAccountId,
+      categoryId,
+      type, // 'INCOME', 'EXPENSE', 'TRANSFER'
+      amount,
+      date,
+      note,
+      visibility, // 'FAMILY', 'PRIVATE'
+    } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'Transaction ID is required' }, { status: 400 });
+    }
+
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      return NextResponse.json({ error: 'সঠিক টাকার পরিমাণ দিন' }, { status: 400 });
+    }
+
+    const existing = await prisma.transaction.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
+    }
+
+    // Atomic transaction: Revert old balances, apply new balances, update transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Revert previous account balance adjustments
+      if (existing.type === 'INCOME') {
+        await tx.account.update({
+          where: { id: existing.accountId },
+          data: { balance: { decrement: existing.amount } },
+        });
+      } else if (existing.type === 'EXPENSE') {
+        await tx.account.update({
+          where: { id: existing.accountId },
+          data: { balance: { increment: existing.amount } },
+        });
+      } else if (existing.type === 'TRANSFER' && existing.toAccountId) {
+        await tx.account.update({
+          where: { id: existing.accountId },
+          data: { balance: { increment: existing.amount } },
+        });
+        await tx.account.update({
+          where: { id: existing.toAccountId },
+          data: { balance: { decrement: existing.amount } },
+        });
+      }
+
+      // 2. Apply new account balance adjustments
+      const targetAccountId = accountId || existing.accountId;
+      const targetToAccountId = type === 'TRANSFER' ? (toAccountId || null) : null;
+
+      if (type === 'INCOME') {
+        await tx.account.update({
+          where: { id: targetAccountId },
+          data: { balance: { increment: parsedAmount } },
+        });
+      } else if (type === 'EXPENSE') {
+        await tx.account.update({
+          where: { id: targetAccountId },
+          data: { balance: { decrement: parsedAmount } },
+        });
+      } else if (type === 'TRANSFER' && targetToAccountId) {
+        await tx.account.update({
+          where: { id: targetAccountId },
+          data: { balance: { decrement: parsedAmount } },
+        });
+        await tx.account.update({
+          where: { id: targetToAccountId },
+          data: { balance: { increment: parsedAmount } },
+        });
+      }
+
+      // 3. Update transaction record
+      const updated = await tx.transaction.update({
+        where: { id },
+        data: {
+          accountId: targetAccountId,
+          toAccountId: targetToAccountId,
+          categoryId: type === 'TRANSFER' ? null : (categoryId || null),
+          type,
+          amount: parsedAmount,
+          date: date ? parseDateSafe(date) : existing.date,
+          note: note !== undefined ? note : existing.note,
+          visibility: visibility || existing.visibility,
+          ...(userId ? { userId } : {}),
+        },
+        include: {
+          user: true,
+          account: true,
+          toAccount: true,
+          category: true,
+        },
+      });
+
+      return updated;
+    });
+
+    return NextResponse.json(result);
+  } catch (error: any) {
+    console.error('Error editing transaction:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

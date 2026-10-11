@@ -36,6 +36,7 @@ interface AddTransactionModalProps {
   isAutoPopup?: boolean;
   autoPopupSlot?: number | null;
   onSkipToday?: () => void;
+  transactionToEdit?: any | null;
 }
 
 export function AddTransactionModal({
@@ -49,6 +50,7 @@ export function AddTransactionModal({
   isAutoPopup = false,
   autoPopupSlot = null,
   onSkipToday,
+  transactionToEdit = null,
 }: AddTransactionModalProps) {
   const [type, setType] = useState<'INCOME' | 'EXPENSE' | 'TRANSFER'>('EXPENSE');
   const [amount, setAmount] = useState('');
@@ -70,12 +72,38 @@ export function AddTransactionModal({
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [newCatName, setNewCatName] = useState('');
 
-  // Auto-popup defaults to EXPENSE
+  // Handle open / edit pre-filling
   React.useEffect(() => {
-    if (isOpen && isAutoPopup) {
-      setType('EXPENSE');
+    if (isOpen && transactionToEdit) {
+      setType(transactionToEdit.type || 'EXPENSE');
+      setAmount(String(transactionToEdit.amount || ''));
+      setCategoryId(transactionToEdit.categoryId || '');
+      setAccountId(transactionToEdit.accountId || (accounts[0]?.id || ''));
+      setToAccountId(transactionToEdit.toAccountId || (accounts[1]?.id || ''));
+      if (transactionToEdit.date) {
+        const d = new Date(transactionToEdit.date);
+        setDate(getLocalDateString(d));
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mm = String(d.getMinutes()).padStart(2, '0');
+        setTime(`${hh}:${mm}`);
+      }
+      setNote(transactionToEdit.note || '');
+      setVisibility(transactionToEdit.visibility || 'FAMILY');
+    } else if (isOpen && !transactionToEdit) {
+      setType(isAutoPopup ? 'EXPENSE' : 'EXPENSE');
+      setAmount('');
+      setCategoryId('');
+      setAccountId(accounts[0]?.id || '');
+      setToAccountId(accounts[1]?.id || '');
+      setDate(getLocalDateString());
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      setTime(`${hh}:${mm}`);
+      setNote('');
+      setVisibility('FAMILY');
     }
-  }, [isOpen, isAutoPopup]);
+  }, [isOpen, transactionToEdit, isAutoPopup, accounts]);
 
   // Handle Escape key dismiss
   React.useEffect(() => {
@@ -131,11 +159,13 @@ export function AddTransactionModal({
     }
 
     setLoading(true);
+    const isEditing = Boolean(transactionToEdit);
     try {
       const res = await fetch('/api/transactions', {
-        method: 'POST',
+        method: isEditing ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          ...(isEditing ? { id: transactionToEdit.id } : {}),
           userId,
           householdId,
           accountId,
@@ -157,11 +187,11 @@ export function AddTransactionModal({
         onClose();
       } else {
         const err = await res.json();
-        alert(err.error || 'সমস্যা হয়েছে');
+        alert(err.error || (isEditing ? 'লেনদেন সম্পাদনায় সমস্যা হয়েছে' : 'সমস্যা হয়েছে'));
       }
     } catch (err) {
       console.error(err);
-      alert('লেনদেন যোগ করতে সমস্যা হয়েছে');
+      alert(isEditing ? 'লেনদেন সম্পাদনা করতে সমস্যা হয়েছে' : 'লেনদেন যোগ করতে সমস্যা হয়েছে');
     } finally {
       setLoading(false);
     }
@@ -181,7 +211,7 @@ export function AddTransactionModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Auto Popup Notice */}
-        {isAutoPopup && (
+        {isAutoPopup && !transactionToEdit && (
           <div className="mb-4 p-3.5 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 border border-amber-300/80 rounded-2xl flex items-start gap-3 shadow-xs">
             <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-amber-500/30">
               <Sparkles className="w-4 h-4 animate-spin-slow" />
@@ -203,7 +233,11 @@ export function AddTransactionModal({
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-100">
           <h3 className="font-bold text-lg text-slate-800">
-            {isAutoPopup ? 'আজকের খরচ এন্ট্রি' : 'নতুন লেনদেন এন্ট্রি'}
+            {transactionToEdit
+              ? 'লেনদেন সম্পাদনা ও পরিবর্তন'
+              : isAutoPopup
+              ? 'আজকের খরচ এন্ট্রি'
+              : 'নতুন লেনদেন এন্ট্রি'}
           </h3>
           <button
             onClick={onClose}
@@ -449,7 +483,11 @@ export function AddTransactionModal({
                   : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/30'
               }`}
             >
-              {loading ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
+              {loading
+                ? 'সংরক্ষণ হচ্ছে...'
+                : transactionToEdit
+                ? 'পরিবর্তন সংরক্ষণ করুন'
+                : 'সংরক্ষণ করুন'}
             </button>
           </div>
 

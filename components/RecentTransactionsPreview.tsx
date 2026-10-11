@@ -9,6 +9,7 @@ import {
   ArrowRight,
   Plus,
   Lock,
+  Pencil,
 } from 'lucide-react';
 import { formatBDT, formatDate, formatDateTime } from '@/lib/utils';
 
@@ -23,6 +24,9 @@ interface Transaction {
   account: { id: string; name: string };
   toAccount: { id: string; name: string } | null;
   user: { id: string; name: string };
+  accountId?: string;
+  toAccountId?: string | null;
+  categoryId?: string | null;
 }
 
 interface RecentTransactionsPreviewProps {
@@ -30,6 +34,7 @@ interface RecentTransactionsPreviewProps {
   useBengaliDigits: boolean;
   onViewAll: () => void;
   onOpenAddModal: () => void;
+  onEditTransaction?: (transaction: any) => void;
 }
 
 export function RecentTransactionsPreview({
@@ -37,6 +42,7 @@ export function RecentTransactionsPreview({
   useBengaliDigits,
   onViewAll,
   onOpenAddModal,
+  onEditTransaction,
 }: RecentTransactionsPreviewProps) {
   const recent = transactions.slice(0, 5);
 
@@ -146,18 +152,30 @@ export function RecentTransactionsPreview({
                   </div>
                 </div>
 
-                {/* Right: Amount */}
-                <div
-                  className={`font-bold text-sm sm:text-base shrink-0 text-right ${
-                    isIncome
-                      ? 'text-emerald-600'
-                      : isExpense
-                      ? 'text-rose-600'
-                      : 'text-indigo-600'
-                  }`}
-                >
-                  {isIncome ? '+ ' : isExpense ? '- ' : ''}
-                  {formatBDT(t.amount, { useBengaliDigits })}
+                {/* Right: Amount & Edit */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <div
+                    className={`font-bold text-sm sm:text-base text-right ${
+                      isIncome
+                        ? 'text-emerald-600'
+                        : isExpense
+                        ? 'text-rose-600'
+                        : 'text-indigo-600'
+                    }`}
+                  >
+                    {isIncome ? '+ ' : isExpense ? '- ' : ''}
+                    {formatBDT(t.amount, { useBengaliDigits })}
+                  </div>
+
+                  {onEditTransaction && (
+                    <button
+                      onClick={() => onEditTransaction(t)}
+                      className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition opacity-80 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 cursor-pointer"
+                      title="সম্পাদনা করুন"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             );

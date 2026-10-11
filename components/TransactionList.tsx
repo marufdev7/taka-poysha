@@ -23,6 +23,7 @@ import {
   Printer,
   FileDown,
   RefreshCw,
+  Pencil,
 } from 'lucide-react';
 import { exportTransactionsToPdf } from '@/lib/pdfExport';
 import {
@@ -45,6 +46,9 @@ interface Transaction {
   account: { name: string };
   toAccount: { name: string } | null;
   category: { name: string; color: string | null } | null;
+  accountId?: string;
+  toAccountId?: string | null;
+  categoryId?: string | null;
   createdAt?: string | Date;
 }
 
@@ -55,6 +59,7 @@ interface TransactionListProps {
   isFamilyView: boolean;
   currentUserId: string;
   onOpenAddModal?: () => void;
+  onEditTransaction?: (transaction: any) => void;
 }
 
 export function TransactionList({
@@ -64,6 +69,7 @@ export function TransactionList({
   isFamilyView,
   currentUserId,
   onOpenAddModal,
+  onEditTransaction,
 }: TransactionListProps) {
   const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
   const [search, setSearch] = useState('');
@@ -645,8 +651,8 @@ export function TransactionList({
                   </div>
                 </div>
 
-                {/* Right: Amount & Delete Action */}
-                <div className="flex items-center gap-3 shrink-0">
+                {/* Right: Amount & Actions (Edit & Delete) */}
+                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <div
                     className={`font-bold text-sm sm:text-base ${
                       isIncome
@@ -660,14 +666,25 @@ export function TransactionList({
                     {formatBDT(t.amount, { useBengaliDigits })}
                   </div>
 
-                  <button
-                    onClick={() => handleDelete(t.id)}
-                    disabled={deletingId === t.id}
-                    className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition opacity-0 group-hover:opacity-100 focus:opacity-100 cursor-pointer"
-                    title="মুছে ফেলুন"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 focus-within:opacity-100 transition">
+                    {onEditTransaction && (
+                      <button
+                        onClick={() => onEditTransaction(t)}
+                        className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition cursor-pointer"
+                        title="সম্পাদনা / পরিবর্তন করুন"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDelete(t.id)}
+                      disabled={deletingId === t.id}
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                      title="মুছে ফেলুন"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             );

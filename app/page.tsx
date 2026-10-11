@@ -43,6 +43,7 @@ export default function HomePage() {
   const [isAiChatOpen, setIsAiChatOpen] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isAddDebtModalOpen, setIsAddDebtModalOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<any | null>(null);
   const [copiedInvite, setCopiedInvite] = useState(false);
 
   // Auto Expense Popup State (twice a day)
@@ -138,6 +139,13 @@ export default function HomePage() {
   }, [loading, data]);
 
   const handleOpenManualAddModal = () => {
+    setEditingTransaction(null);
+    setAutoPopupSlot(null);
+    setIsAddModalOpen(true);
+  };
+
+  const handleOpenEditTransactionModal = (tx: any) => {
+    setEditingTransaction(tx);
     setAutoPopupSlot(null);
     setIsAddModalOpen(true);
   };
@@ -147,6 +155,7 @@ export default function HomePage() {
       markAutoPopupShown(autoPopupSlot as 1 | 2);
       setAutoPopupSlot(null);
     }
+    setEditingTransaction(null);
     setIsAddModalOpen(false);
   };
 
@@ -155,6 +164,7 @@ export default function HomePage() {
       markAutoPopupShown(autoPopupSlot as 1 | 2);
       setAutoPopupSlot(null);
     }
+    setEditingTransaction(null);
     setIsAddModalOpen(false);
     fetchData(activeUserId);
   };
@@ -448,6 +458,7 @@ export default function HomePage() {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               onOpenAddModal={() => setIsAddModalOpen(true)}
+              onEditTransaction={handleOpenEditTransactionModal}
             />
 
             {/* 5. Debts & Loans Summary */}
@@ -492,6 +503,7 @@ export default function HomePage() {
             isFamilyView={isFamilyView}
             currentUserId={currentUser.id}
             onOpenAddModal={() => setIsAddModalOpen(true)}
+            onEditTransaction={handleOpenEditTransactionModal}
           />
         )}
 
@@ -555,7 +567,7 @@ export default function HomePage() {
         </button>
       </div>
 
-      {/* Add Transaction Modal */}
+      {/* Add / Edit Transaction Modal */}
       <AddTransactionModal
         isOpen={isAddModalOpen}
         onClose={handleCloseAddModal}
@@ -567,6 +579,7 @@ export default function HomePage() {
         isAutoPopup={Boolean(autoPopupSlot)}
         autoPopupSlot={autoPopupSlot}
         onSkipToday={handleSkipAutoPopupToday}
+        transactionToEdit={editingTransaction}
       />
 
       {/* Add Debt / Loan Modal */}
