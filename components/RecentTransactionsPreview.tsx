@@ -21,17 +21,20 @@ interface Transaction {
   note: string | null;
   visibility: string;
   category: { id: string; name: string } | null;
-  account: { id: string; name: string };
-  toAccount: { id: string; name: string } | null;
+  account: { id: string; name: string; userId?: string };
+  toAccount: { id: string; name: string; userId?: string } | null;
   user: { id: string; name: string };
   accountId?: string;
   toAccountId?: string | null;
   categoryId?: string | null;
+  [key: string]: any;
 }
 
 interface RecentTransactionsPreviewProps {
   transactions: Transaction[];
   useBengaliDigits: boolean;
+  currentUserId?: string;
+  isFamilyView?: boolean;
   onViewAll: () => void;
   onOpenAddModal: () => void;
   onEditTransaction?: (transaction: any) => void;
@@ -40,6 +43,8 @@ interface RecentTransactionsPreviewProps {
 export function RecentTransactionsPreview({
   transactions,
   useBengaliDigits,
+  currentUserId,
+  isFamilyView = false,
   onViewAll,
   onOpenAddModal,
   onEditTransaction,
@@ -102,6 +107,18 @@ export function RecentTransactionsPreview({
             const isExpense = t.type === 'EXPENSE';
             const isTransfer = t.type === 'TRANSFER';
 
+            const toAccountUserId = (t.toAccount as any)?.userId || (t.toAccount as any)?.user?.id;
+            const fromAccountUserId = (t.account as any)?.userId || t.user?.id;
+
+            const isIncomingTransfer =
+              isTransfer && currentUserId && toAccountUserId === currentUserId && fromAccountUserId !== currentUserId;
+            const isOutgoingTransfer =
+              isTransfer &&
+              currentUserId &&
+              fromAccountUserId === currentUserId &&
+              toAccountUserId &&
+              toAccountUserId !== currentUserId;
+
             return (
               <div
                 key={t.id}
@@ -111,25 +128,36 @@ export function RecentTransactionsPreview({
                 <div className="flex items-center gap-3 min-w-0">
                   <div
                     className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                      isIncome
+                      isIncome || isIncomingTransfer
                         ? 'bg-emerald-50 text-emerald-600'
-                        : isExpense
+                        : isExpense || isOutgoingTransfer
                         ? 'bg-rose-50 text-rose-600'
                         : 'bg-indigo-50 text-indigo-600'
                     }`}
                   >
-                    {isIncome && <ArrowDownLeft className="w-4 h-4" />}
-                    {isExpense && <ArrowUpRight className="w-4 h-4" />}
-                    {isTransfer && <ArrowRightLeft className="w-4 h-4" />}
+                    {(isIncome || isIncomingTransfer) && <ArrowDownLeft className="w-4 h-4" />}
+                    {(isExpense || isOutgoingTransfer) && <ArrowUpRight className="w-4 h-4" />}
+                    {isTransfer && !isIncomingTransfer && !isOutgoingTransfer && (
+                      <ArrowRightLeft className="w-4 h-4" />
+                    )}
                   </div>
 
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-slate-800 text-sm truncate">
-                        {isTransfer
+                        {isIncomingTransfer
+                          ? `স্থানান্তরিত প্রাপ্তি: ${t.account.name} (${t.user.name}) → ${t.toAccount?.name || 'আমার ওয়ালেট'}`
+                          : isOutgoingTransfer
+                          ? `পারিবারিক স্থানান্তর: ${t.account.name} → ${t.toAccount?.name || 'ওয়ালেট'}`
+                          : isTransfer
                           ? `স্থানান্তর: ${t.account.name} → ${t.toAccount?.name || 'ওয়ালেট'}`
                           : t.category?.name || 'সাধারণ'}
                       </span>
+                      {isIncomingTransfer && (
+                        <span className="inline-flex items-center text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-medium shrink-0">
+                          প্রাপ্তি
+                        </span>
+                      )}
                       {t.visibility === 'PRIVATE' && (
                         <span className="inline-flex items-center gap-0.5 text-[10px] bg-amber-50 text-amber-700 px-1.5 py-0.2 rounded border border-amber-200/60 shrink-0">
                           <Lock className="w-2.5 h-2.5" />
@@ -156,14 +184,18 @@ export function RecentTransactionsPreview({
                 <div className="flex items-center gap-2 shrink-0">
                   <div
                     className={`font-bold text-sm sm:text-base text-right ${
-                      isIncome
+                      isIncome || isIncomingTransfer
                         ? 'text-emerald-600'
-                        : isExpense
+                        : isExpense || isOutgoingTransfer
                         ? 'text-rose-600'
                         : 'text-indigo-600'
                     }`}
                   >
-                    {isIncome ? '+ ' : isExpense ? '- ' : ''}
+                    {isIncome || isIncomingTransfer
+                      ? '+ '
+                      : isExpense || isOutgoingTransfer
+                      ? '- '
+                      : '⇄ '}
                     {formatBDT(t.amount, { useBengaliDigits })}
                   </div>
 

@@ -10,6 +10,7 @@ import {
   Plus,
   ArrowUpRight,
   ArrowDownLeft,
+  ArrowRightLeft,
   Pencil,
   Trash2,
   Wallet,
@@ -45,6 +46,8 @@ interface Transaction {
 interface FinancialCalendarProps {
   transactions: Transaction[];
   useBengaliDigits: boolean;
+  currentUserId?: string;
+  isFamilyView?: boolean;
   onAddTransaction: (dateStr?: string) => void;
   onEditTransaction: (transaction: any) => void;
   onRefresh: () => void;
@@ -78,6 +81,8 @@ const WEEKDAYS = [
 export function FinancialCalendar({
   transactions,
   useBengaliDigits,
+  currentUserId,
+  isFamilyView = false,
   onAddTransaction,
   onEditTransaction,
   onRefresh,
@@ -640,7 +645,20 @@ export function FinancialCalendar({
               <div className="space-y-2.5 max-h-[420px] overflow-y-auto pr-1">
                 {selectedDayData.items.map((t) => {
                   const isIncome = t.type === 'INCOME';
+                  const isExpense = t.type === 'EXPENSE';
                   const isTransfer = t.type === 'TRANSFER';
+
+                  const toAccountUserId = (t.toAccount as any)?.userId || (t.toAccount as any)?.user?.id;
+                  const fromAccountUserId = (t.account as any)?.userId || t.user?.id;
+
+                  const isIncomingTransfer =
+                    isTransfer && currentUserId && toAccountUserId === currentUserId && fromAccountUserId !== currentUserId;
+                  const isOutgoingTransfer =
+                    isTransfer &&
+                    currentUserId &&
+                    fromAccountUserId === currentUserId &&
+                    toAccountUserId &&
+                    toAccountUserId !== currentUserId;
 
                   return (
                     <div
@@ -651,15 +669,19 @@ export function FinancialCalendar({
                         {/* Icon */}
                         <div
                           className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                            isIncome
+                            isIncome || isIncomingTransfer
                               ? 'bg-emerald-100 text-emerald-700'
-                              : isTransfer
-                              ? 'bg-blue-100 text-blue-700'
-                              : 'bg-rose-100 text-rose-700'
+                              : isExpense || isOutgoingTransfer
+                              ? 'bg-rose-100 text-rose-700'
+                              : 'bg-blue-100 text-blue-700'
                           }`}
                         >
-                          {isIncome ? (
+                          {isIncome || isIncomingTransfer ? (
                             <ArrowDownLeft className="w-4 h-4" />
+                          ) : isExpense || isOutgoingTransfer ? (
+                            <ArrowUpRight className="w-4 h-4" />
+                          ) : isTransfer ? (
+                            <ArrowRightLeft className="w-4 h-4" />
                           ) : (
                             <ArrowUpRight className="w-4 h-4" />
                           )}
@@ -669,8 +691,19 @@ export function FinancialCalendar({
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-semibold text-xs sm:text-sm text-slate-900 truncate">
-                              {t.category?.name || (isTransfer ? 'ট্রান্সফার' : 'সাধারণ')}
+                              {isIncomingTransfer
+                                ? 'স্থানান্তরিত প্রাপ্তি'
+                                : isOutgoingTransfer
+                                ? 'পারিবারিক স্থানান্তর'
+                                : isTransfer
+                                ? 'ওয়ালেট স্থানান্তর'
+                                : t.category?.name || 'সাধারণ'}
                             </span>
+                            {isIncomingTransfer && (
+                              <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1 py-0.2 rounded font-medium">
+                                প্রাপ্তি
+                              </span>
+                            )}
                             {t.visibility === 'PRIVATE' && (
                               <span className="text-[9px] bg-slate-100 text-slate-600 px-1 py-0.2 rounded font-medium">
                                 ব্যক্তিগত
@@ -688,7 +721,9 @@ export function FinancialCalendar({
                             {t.account?.name && (
                               <span className="flex items-center gap-0.5">
                                 <Wallet className="w-2.5 h-2.5" />
-                                {t.account.name}
+                                {isTransfer && t.toAccount?.name
+                                  ? `${t.account.name} → ${t.toAccount.name}`
+                                  : t.account.name}
                               </span>
                             )}
                             {t.user?.name && (
@@ -705,10 +740,18 @@ export function FinancialCalendar({
                       <div className="flex flex-col items-end gap-1.5 shrink-0">
                         <span
                           className={`font-bold text-xs sm:text-sm ${
-                            isIncome ? 'text-emerald-600' : 'text-rose-600'
+                            isIncome || isIncomingTransfer
+                              ? 'text-emerald-600'
+                              : isExpense || isOutgoingTransfer
+                              ? 'text-rose-600'
+                              : 'text-blue-600'
                           }`}
                         >
-                          {isIncome ? '+' : '-'}
+                          {isIncome || isIncomingTransfer
+                            ? '+'
+                            : isExpense || isOutgoingTransfer
+                            ? '-'
+                            : '⇄'}{' '}
                           {formatBDT(t.amount, { useBengaliDigits })}
                         </span>
 

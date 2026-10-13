@@ -55,8 +55,12 @@ export async function POST(request: Request) {
         },
         include: {
           user: true,
-          account: true,
-          toAccount: true,
+          account: {
+            include: { user: true },
+          },
+          toAccount: {
+            include: { user: true },
+          },
           category: true,
         },
       });
@@ -264,8 +268,12 @@ export async function PUT(request: Request) {
         },
         include: {
           user: true,
-          account: true,
-          toAccount: true,
+          account: {
+            include: { user: true },
+          },
+          toAccount: {
+            include: { user: true },
+          },
           category: true,
         },
       });
@@ -279,3 +287,6 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export const PATCH = PUT;
+

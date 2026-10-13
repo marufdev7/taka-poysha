@@ -23,6 +23,11 @@ interface Account {
   id: string;
   name: string;
   balance: number;
+  userId?: string;
+  user?: {
+    id: string;
+    name: string;
+  };
 }
 
 interface AddTransactionModalProps {
@@ -33,6 +38,9 @@ interface AddTransactionModalProps {
   householdId: string;
   categories: Category[];
   accounts: Account[];
+  allAccounts?: any[];
+  users?: any[];
+  currentUser?: any;
   isAutoPopup?: boolean;
   autoPopupSlot?: number | null;
   onSkipToday?: () => void;
@@ -48,6 +56,9 @@ export function AddTransactionModal({
   householdId,
   categories,
   accounts,
+  allAccounts = [],
+  users = [],
+  currentUser,
   isAutoPopup = false,
   autoPopupSlot = null,
   onSkipToday,
@@ -58,7 +69,7 @@ export function AddTransactionModal({
   const [amount, setAmount] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [accountId, setAccountId] = useState(accounts[0]?.id || '');
-  const [toAccountId, setToAccountId] = useState(accounts[1]?.id || '');
+  const [toAccountId, setToAccountId] = useState('');
   const [date, setDate] = useState(() => getLocalDateString());
   const [time, setTime] = useState(() => {
     const now = new Date();
@@ -74,6 +85,41 @@ export function AddTransactionModal({
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [newCatName, setNewCatName] = useState('');
 
+  // Household accounts calculations for Transfers
+  const allHouseholdAccounts = React.useMemo(() => {
+    return allAccounts && allAccounts.length > 0 ? allAccounts : accounts;
+  }, [allAccounts, accounts]);
+
+  const myOtherAccounts = React.useMemo(() => {
+    return accounts.filter((a) => a.id !== accountId);
+  }, [accounts, accountId]);
+
+  const familyMemberAccounts = React.useMemo(() => {
+    return allHouseholdAccounts.filter(
+      (a) => a.userId && a.userId !== userId && a.id !== accountId
+    );
+  }, [allHouseholdAccounts, userId, accountId]);
+
+  const selectedToAccount = React.useMemo(() => {
+    return allHouseholdAccounts.find((a) => a.id === toAccountId);
+  }, [allHouseholdAccounts, toAccountId]);
+
+  const isTransferToFamilyMember = Boolean(
+    type === 'TRANSFER' &&
+      selectedToAccount &&
+      selectedToAccount.userId &&
+      selectedToAccount.userId !== userId
+  );
+
+  const recipientMemberName = React.useMemo(() => {
+    if (!selectedToAccount) return '';
+    return (
+      selectedToAccount.user?.name ||
+      users.find((u: any) => u.id === selectedToAccount.userId)?.name ||
+      'পারিবারিক সদস্য'
+    );
+  }, [selectedToAccount, users]);
+
   // Handle open / edit pre-filling
   React.useEffect(() => {
     if (isOpen && transactionToEdit) {
@@ -81,7 +127,7 @@ export function AddTransactionModal({
       setAmount(String(transactionToEdit.amount || ''));
       setCategoryId(transactionToEdit.categoryId || '');
       setAccountId(transactionToEdit.accountId || (accounts[0]?.id || ''));
-      setToAccountId(transactionToEdit.toAccountId || (accounts[1]?.id || ''));
+      setToAccountId(transactionToEdit.toAccountId || '');
       if (transactionToEdit.date) {
         const d = new Date(transactionToEdit.date);
         setDate(getLocalDateString(d));
@@ -92,11 +138,16 @@ export function AddTransactionModal({
       setNote(transactionToEdit.note || '');
       setVisibility(transactionToEdit.visibility || 'FAMILY');
     } else if (isOpen && !transactionToEdit) {
-      setType(isAutoPopup ? 'EXPENSE' : 'EXPENSE');
+      setType('EXPENSE');
       setAmount('');
       setCategoryId('');
-      setAccountId(accounts[0]?.id || '');
-      setToAccountId(accounts[1]?.id || '');
+      const initialFrom = accounts[0]?.id || '';
+      setAccountId(initialFrom);
+      const defaultDest =
+        accounts.find((a) => a.id !== initialFrom)?.id ||
+        allHouseholdAccounts.find((a) => a.id !== initialFrom)?.id ||
+        '';
+      setToAccountId(defaultDest);
       setDate(defaultDate || getLocalDateString());
       const now = new Date();
       const hh = String(now.getHours()).padStart(2, '0');
@@ -105,7 +156,7 @@ export function AddTransactionModal({
       setNote('');
       setVisibility('FAMILY');
     }
-  }, [isOpen, transactionToEdit, isAutoPopup, accounts, defaultDate]);
+  }, [isOpen, transactionToEdit, accounts, allHouseholdAccounts, defaultDate]);
 
   // Handle Escape key dismiss
   React.useEffect(() => {
@@ -376,11 +427,21 @@ export function AddTransactionModal({
           {/* Account/Wallet */}
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">
-              {type === 'TRANSFER' ? 'কোন একাউন্ট থেকে কাটবে?' : 'ওয়ালেট / একাউন্ট *'}
+              {type === 'TRANSFER' ? 'টাকা পাঠানোর ওয়ালেট (প্রেরক) *' : 'ওয়ালেট / একাউন্ট *'}
             </label>
             <select
               value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
+              onChange={(e) => {
+                const newAccountId = e.target.value;
+                setAccountId(newAccountId);
+                if (toAccountId === newAccountId) {
+                  const fallback =
+                    accounts.find((a) => a.id !== newAccountId)?.id ||
+                    allHouseholdAccounts.find((a) => a.id !== newAccountId)?.id ||
+                    '';
+                  setToAccountId(fallback);
+                }
+              }}
               className="w-full text-sm px-3 py-2 border border-slate-200 rounded-xl focus:outline-emerald-500 bg-white"
               required
             >
@@ -394,24 +455,64 @@ export function AddTransactionModal({
 
           {/* Destination Account for Transfer */}
           {type === 'TRANSFER' && (
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
-                কোন একাউন্টে জমা হবে? *
-              </label>
-              <select
-                value={toAccountId}
-                onChange={(e) => setToAccountId(e.target.value)}
-                className="w-full text-sm px-3 py-2 border border-slate-200 rounded-xl focus:outline-emerald-500 bg-white"
-                required
-              >
-                {accounts
-                  .filter((a) => a.id !== accountId)
-                  .map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} (৳ {a.balance})
-                    </option>
-                  ))}
-              </select>
+            <div className="space-y-2">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  টাকা কোন ওয়ালেটে জমা হবে? (প্রাপক) *
+                </label>
+                <select
+                  value={toAccountId}
+                  onChange={(e) => setToAccountId(e.target.value)}
+                  className="w-full text-sm px-3 py-2 border border-slate-200 rounded-xl focus:outline-emerald-500 bg-white"
+                  required
+                >
+                  <option value="">গন্তব্য ওয়ালেট নির্বাচন করুন</option>
+                  {myOtherAccounts.length > 0 && (
+                    <optgroup label="আমার অন্যান্য ওয়ালেট">
+                      {myOtherAccounts.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name} (৳ {a.balance})
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {familyMemberAccounts.length > 0 && (
+                    <optgroup label="👨‍👩‍👧 পারিবারিক সদস্যদের ওয়ালেট">
+                      {familyMemberAccounts.map((a: any) => {
+                        const ownerName =
+                          a.user?.name ||
+                          users.find((u: any) => u.id === a.userId)?.name ||
+                          'সদস্য';
+                        return (
+                          <option key={a.id} value={a.id}>
+                            {ownerName} এর {a.name} (৳ {a.balance})
+                          </option>
+                        );
+                      })}
+                    </optgroup>
+                  )}
+                </select>
+              </div>
+
+              {/* Informative Guidance for Family Transfer */}
+              <div className="p-3 rounded-2xl bg-indigo-50/90 border border-indigo-100 text-xs text-indigo-800 leading-relaxed flex items-start gap-2.5">
+                <Sparkles className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold text-indigo-950 block mb-0.5">
+                    পারিবারিক স্থানান্তর (Double Counting মুক্ত):
+                  </span>
+                  পরিবারের এক সদস্য (যেমন: বাবা) অন্য সদস্যকে (যেমন: ছেলে) টাকা দিলে এটি পারিবারিক মোট আয় দ্বিগুণ করবে না। শুধু প্রেরকের একাউন্ট থেকে কেটে প্রাপকের একাউন্টে টাকা স্থানান্তর হবে।
+                </div>
+              </div>
+
+              {isTransferToFamilyMember && (
+                <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center gap-2">
+                  <Users className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>
+                    👉 এই টাকাটি সরাসরি <strong>{recipientMemberName}</strong>-এর ওয়ালেটে জমা হবে।
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
@@ -458,7 +559,11 @@ export function AddTransactionModal({
             </label>
             <input
               type="text"
-              placeholder="যেমন: কারওয়ান বাজার থেকে মাছ কেনা"
+              placeholder={
+                type === 'TRANSFER'
+                  ? 'যেমন: পকেট খরচ, হাতখরচ, জরুরি প্রয়োজন...'
+                  : 'যেমন: কারওয়ান বাজার থেকে মাছ কেনা'
+              }
               value={note}
               onChange={(e) => setNote(e.target.value)}
               className="w-full text-sm px-3 py-2 border border-slate-200 rounded-xl focus:outline-emerald-500"

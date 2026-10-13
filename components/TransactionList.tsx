@@ -43,8 +43,8 @@ interface Transaction {
   note: string | null;
   visibility: string;
   user: { id: string; name: string };
-  account: { name: string };
-  toAccount: { name: string } | null;
+  account: { name: string; userId?: string; user?: { id: string; name: string } };
+  toAccount: { name: string; userId?: string; user?: { id: string; name: string } } | null;
   category: { name: string; color: string | null } | null;
   accountId?: string;
   toAccountId?: string | null;
@@ -82,10 +82,15 @@ export function TransactionList({
   // Privacy check on all transactions
   const visibleTransactions = useMemo(() => {
     return transactions.filter((t) => {
+      const isIncomingTransfer =
+        t.type === 'TRANSFER' &&
+        ((t.toAccount && (t.toAccount.userId === currentUserId || (t.toAccount as any).user?.id === currentUserId)) ||
+          (t as any).toAccountId && (t as any).toAccount?.userId === currentUserId);
+
       if (!isFamilyView) {
-        if (t.user.id !== currentUserId) return false;
+        if (t.user.id !== currentUserId && !isIncomingTransfer) return false;
       } else {
-        if (t.visibility === 'PRIVATE' && t.user.id !== currentUserId) {
+        if (t.visibility === 'PRIVATE' && t.user.id !== currentUserId && !isIncomingTransfer) {
           return false;
         }
       }
@@ -584,6 +589,19 @@ export function TransactionList({
             const isExpense = t.type === 'EXPENSE';
             const isTransfer = t.type === 'TRANSFER';
 
+            const toAccountUserId = t.toAccount?.userId || (t.toAccount as any)?.user?.id;
+            const fromAccountUserId = (t.account as any)?.userId || t.user?.id;
+
+            const isIncomingTransfer =
+              isTransfer && toAccountUserId === currentUserId && fromAccountUserId !== currentUserId;
+            const isOutgoingTransfer =
+              isTransfer &&
+              fromAccountUserId === currentUserId &&
+              toAccountUserId &&
+              toAccountUserId !== currentUserId;
+
+            const canModify = t.user.id === currentUserId;
+
             return (
               <div
                 key={t.id}
@@ -593,25 +611,42 @@ export function TransactionList({
                 <div className="flex items-center gap-3 min-w-0">
                   <div
                     className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                      isIncome
+                      isIncome || isIncomingTransfer
                         ? 'bg-emerald-50 text-emerald-600'
-                        : isExpense
+                        : isExpense || isOutgoingTransfer
                         ? 'bg-rose-50 text-rose-600'
                         : 'bg-indigo-50 text-indigo-600'
                     }`}
                   >
-                    {isIncome && <ArrowDownLeft className="w-5 h-5" />}
-                    {isExpense && <ArrowUpRight className="w-5 h-5" />}
-                    {isTransfer && <ArrowRightLeft className="w-5 h-5" />}
+                    {(isIncome || isIncomingTransfer) && <ArrowDownLeft className="w-5 h-5" />}
+                    {(isExpense || isOutgoingTransfer) && <ArrowUpRight className="w-5 h-5" />}
+                    {isTransfer && !isIncomingTransfer && !isOutgoingTransfer && (
+                      <ArrowRightLeft className="w-5 h-5" />
+                    )}
                   </div>
 
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                       <span className="font-semibold text-slate-800 text-sm truncate">
-                        {isTransfer
-                          ? `স্থানান্তর: ${t.account.name} → ${t.toAccount?.name || 'ওয়ালেট'}`
+                        {isIncomingTransfer
+                          ? `স্থানান্তরিত প্রাপ্তি: ${t.account.name} (${t.user.name}) → ${t.toAccount?.name || 'আমার ওয়ালেট'}`
+                          : isOutgoingTransfer
+                          ? `পারিবারিক স্থানান্তর: ${t.account.name} → ${t.toAccount?.name || 'ওয়ালেট'} (${(t.toAccount as any)?.user?.name || 'প্রাপক'})`
+                          : isTransfer
+                          ? `স্থানান্তর: ${t.account.name}${isFamilyView && t.user?.name ? ` (${t.user.name})` : ''} → ${t.toAccount?.name || 'ওয়ালেট'}${isFamilyView && (t.toAccount as any)?.user?.name ? ` (${(t.toAccount as any).user.name})` : ''}`
                           : t.category?.name || 'সাধারণ'}
                       </span>
+
+                      {/* Badges */}
+                      {isIncomingTransfer ? (
+                        <span className="inline-flex items-center gap-0.5 text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-medium shrink-0">
+                          পারিবারিক প্রাপ্তি
+                        </span>
+                      ) : isOutgoingTransfer ? (
+                        <span className="inline-flex items-center gap-0.5 text-[10px] bg-indigo-100 text-indigo-800 px-1.5 py-0.2 rounded font-medium shrink-0">
+                          পারিবারিক স্থানান্তর
+                        </span>
+                      ) : null}
 
                       {/* Privacy Badge */}
                       {t.visibility === 'PRIVATE' ? (
@@ -655,36 +690,42 @@ export function TransactionList({
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <div
                     className={`font-bold text-sm sm:text-base ${
-                      isIncome
+                      isIncome || isIncomingTransfer
                         ? 'text-emerald-600'
-                        : isExpense
+                        : isExpense || isOutgoingTransfer
                         ? 'text-rose-600'
                         : 'text-indigo-600'
                     }`}
                   >
-                    {isIncome ? '+' : isExpense ? '-' : ''}{' '}
+                    {isIncome || isIncomingTransfer
+                      ? '+'
+                      : isExpense || isOutgoingTransfer
+                      ? '-'
+                      : '⇄'}{' '}
                     {formatBDT(t.amount, { useBengaliDigits })}
                   </div>
 
-                  <div className="flex items-center gap-1 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 focus-within:opacity-100 transition">
-                    {onEditTransaction && (
+                  {canModify && (
+                    <div className="flex items-center gap-1 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 focus-within:opacity-100 transition">
+                      {onEditTransaction && (
+                        <button
+                          onClick={() => onEditTransaction(t)}
+                          className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition cursor-pointer"
+                          title="সম্পাদনা / পরিবর্তন করুন"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                      )}
                       <button
-                        onClick={() => onEditTransaction(t)}
-                        className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition cursor-pointer"
-                        title="সম্পাদনা / পরিবর্তন করুন"
+                        onClick={() => handleDelete(t.id)}
+                        disabled={deletingId === t.id}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                        title="মুছে ফেলুন"
                       >
-                        <Pencil className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
-                    )}
-                    <button
-                      onClick={() => handleDelete(t.id)}
-                      disabled={deletingId === t.id}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                      title="মুছে ফেলুন"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
             );

@@ -275,13 +275,14 @@ export default function HomePage() {
   const isHouseholdAdmin = currentMember?.role === 'ADMIN' || currentUser?.role === 'ADMIN';
 
   // Filter transactions based on active view:
-  // If Personal View: Only current user's transactions
-  // If Family View: All FAMILY transactions + current user's PRIVATE transactions
+  // If Personal View: Current user's transactions OR incoming transfers to current user's accounts
+  // If Family View: All FAMILY transactions + current user's PRIVATE transactions + incoming transfers
   const visibleTransactions = transactions.filter((t: any) => {
+    const isIncomingTransfer = t.type === 'TRANSFER' && t.toAccount?.userId === currentUser.id;
     if (!isFamilyView) {
-      return t.userId === currentUser.id;
+      return t.userId === currentUser.id || isIncomingTransfer;
     }
-    return t.visibility === 'FAMILY' || t.userId === currentUser.id;
+    return t.visibility === 'FAMILY' || t.userId === currentUser.id || isIncomingTransfer;
   });
 
   // Calculate today's stats
@@ -519,6 +520,8 @@ export default function HomePage() {
             <RecentTransactionsPreview
               transactions={visibleTransactions}
               useBengaliDigits={useBengaliDigits}
+              currentUserId={currentUser.id}
+              isFamilyView={isFamilyView}
               onViewAll={() => {
                 setActiveTab('transactions');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -569,6 +572,8 @@ export default function HomePage() {
             <FinancialCalendar
               transactions={visibleTransactions}
               useBengaliDigits={useBengaliDigits}
+              currentUserId={currentUser.id}
+              isFamilyView={isFamilyView}
               onAddTransaction={handleOpenAddModalForDate}
               onEditTransaction={handleOpenEditTransactionModal}
               onRefresh={() => fetchData(activeUserId)}
@@ -663,6 +668,9 @@ export default function HomePage() {
         householdId={household?.id || ''}
         categories={categories}
         accounts={accounts.filter((a: any) => a.userId === currentUser.id)}
+        allAccounts={accounts}
+        users={users}
+        currentUser={currentUser}
         isAutoPopup={Boolean(autoPopupSlot)}
         autoPopupSlot={autoPopupSlot}
         onSkipToday={handleSkipAutoPopupToday}

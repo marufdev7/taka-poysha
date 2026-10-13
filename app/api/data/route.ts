@@ -107,8 +107,12 @@ export async function GET(request: Request) {
       where: household ? { householdId: household.id } : { userId: currentUser.id },
       include: {
         user: true,
-        account: true,
-        toAccount: true,
+        account: {
+          include: { user: true },
+        },
+        toAccount: {
+          include: { user: true },
+        },
         category: true,
       },
       orderBy: { date: 'desc' },
