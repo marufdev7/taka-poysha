@@ -40,3 +40,130 @@ body {
   scrollbar-width: none;  /* Firefox */
 }
 
+/* ==========================================================================
+   Smooth Premium Motion & Animations (Apple/iOS Style Cubic-Bezier Springs)
+   ========================================================================== */
+
+@keyframes modalBackdropFadeIn {
+  0% {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+}
+
+@keyframes modalSpringPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(20px);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.008) translateY(-2px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes dropdownReveal {
+  0% {
+    opacity: 0;
+    transform: scale(0.93) translateY(-12px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes tabFadeSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes drawerSlideInRight {
+  0% {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes smoothScaleUp {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Reusable Animation Utility Classes */
+.animate-backdrop-fade {
+  animation: modalBackdropFadeIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-modal-pop {
+  animation: modalSpringPopIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: center center;
+  will-change: transform, opacity;
+}
+
+.animate-dropdown-reveal {
+  animation: dropdownReveal 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: top right;
+  will-change: transform, opacity;
+}
+
+.animate-tab-enter {
+  animation: tabFadeSlideIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-drawer-right {
+  animation: drawerSlideInRight 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-scale-smooth {
+  animation: smoothScaleUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Micro-interaction enhancements */
+.interactive-card {
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.interactive-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.02);
+}
+.interactive-card:active {
+  transform: translateY(0) scale(0.99);
+}
+
+.interactive-btn {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.interactive-btn:hover {
+  transform: translateY(-1px);
+}
+.interactive-btn:active {
+  transform: translateY(1px) scale(0.96);
+}
+

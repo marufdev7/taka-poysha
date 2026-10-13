@@ -148,17 +148,21 @@ export function Navbar({
                 <span className="text-xs sm:text-sm font-medium text-slate-700 hidden lg:inline">
                   {currentUser.name}
                 </span>
-                <ChevronDown className="w-3 h-3 text-slate-400" />
+                <ChevronDown
+                  className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-300 ${
+                    isUserMenuOpen ? 'rotate-180 text-emerald-600' : ''
+                  }`}
+                />
               </button>
 
               {/* User Switch Dropdown Menu */}
               {isUserMenuOpen && (
                 <>
                   <div
-                    className="fixed inset-0 z-40"
+                    className="fixed inset-0 z-40 bg-slate-900/10 backdrop-blur-2xs transition-opacity duration-300"
                     onClick={() => setIsUserMenuOpen(false)}
                   />
-                  <div className="absolute right-0 mt-1 w-52 bg-white border border-slate-200 rounded-xl shadow-xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="absolute right-0 mt-1.5 w-56 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl shadow-2xl py-1.5 z-50 animate-dropdown-reveal origin-top-right">
                     <div className="px-3 py-1.5 border-b border-slate-100 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
                       মেম্বার পরিবর্তন করুন
                     </div>

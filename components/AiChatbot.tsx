@@ -225,7 +225,13 @@ export function AiChatbot({
 
       {/* Floating Chat Drawer Window */}
       {isOpen && (
-        <div className="fixed inset-x-2 bottom-2 sm:inset-x-auto sm:bottom-6 sm:right-6 z-50 w-auto sm:w-[420px] max-w-[420px] h-[82vh] sm:h-[580px] max-h-[85vh] bg-white rounded-3xl shadow-2xl border border-slate-200/80 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-6 duration-200">
+        <>
+          {/* Mobile Backdrop */}
+          <div
+            className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-xs sm:hidden animate-backdrop-fade"
+            onClick={onToggle}
+          />
+          <div className="fixed inset-x-2 bottom-2 sm:inset-x-auto sm:bottom-6 sm:right-6 z-50 w-auto sm:w-[420px] max-w-[420px] h-[82vh] sm:h-[580px] max-h-[85vh] bg-white rounded-3xl shadow-2xl border border-slate-200/80 flex flex-col overflow-hidden animate-modal-pop origin-bottom-right">
           {/* Header */}
           <div className="bg-gradient-to-r from-purple-700 via-indigo-700 to-purple-800 text-white p-3.5 sm:p-4 flex items-center justify-between shadow-xs shrink-0">
             <div className="flex items-center gap-2.5">
@@ -368,6 +374,7 @@ export function AiChatbot({
             </form>
           </div>
         </div>
+        </>
       )}
     </>
   );

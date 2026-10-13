@@ -56,8 +56,16 @@ export function EditProfileModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+    <div
+      className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 animate-backdrop-fade"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        className="bg-white rounded-3xl max-w-sm w-full p-5 sm:p-6 shadow-2xl border border-slate-100 animate-modal-pop"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <h3 className="font-bold text-base text-slate-800">প্রোফাইল ও পরিবারের নাম পরিবর্তন</h3>
           <button

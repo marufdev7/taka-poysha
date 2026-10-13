@@ -366,7 +366,7 @@ export default function HomePage() {
         <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-6 no-scrollbar border-b border-slate-200">
           <button
             onClick={() => setActiveTab('dashboard')}
-            className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-semibold transition shrink-0 ${
+            className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-semibold transition-all duration-300 ease-out active:scale-95 shrink-0 ${
               activeTab === 'dashboard'
                 ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
                 : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50'
@@ -378,7 +378,7 @@ export default function HomePage() {
 
           <button
             onClick={() => setActiveTab('calendar')}
-            className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-semibold transition shrink-0 ${
+            className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-semibold transition-all duration-300 ease-out active:scale-95 shrink-0 ${
               activeTab === 'calendar'
                 ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
                 : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50'
@@ -390,7 +390,7 @@ export default function HomePage() {
 
           <button
             onClick={() => setActiveTab('transactions')}
-            className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-semibold transition shrink-0 ${
+            className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-semibold transition-all duration-300 ease-out active:scale-95 shrink-0 ${
               activeTab === 'transactions'
                 ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
                 : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50'
@@ -399,7 +399,7 @@ export default function HomePage() {
             <Receipt className="w-4 h-4" />
             <span>সকল লেনদেন খতিয়ান</span>
             <span
-              className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+              className={`text-xs px-2 py-0.5 rounded-full font-bold transition-colors ${
                 activeTab === 'transactions' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
               }`}
             >
@@ -409,7 +409,7 @@ export default function HomePage() {
 
           <button
             onClick={() => setActiveTab('debts')}
-            className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-semibold transition shrink-0 ${
+            className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-semibold transition-all duration-300 ease-out active:scale-95 shrink-0 ${
               activeTab === 'debts'
                 ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
                 : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50'
@@ -419,7 +419,7 @@ export default function HomePage() {
             <span>দেনা-পাওনা ট্র্যাকার</span>
             {debts.filter((d: any) => d.status === 'PENDING').length > 0 && (
               <span
-                className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                className={`text-xs px-2 py-0.5 rounded-full font-bold transition-colors ${
                   activeTab === 'debts' ? 'bg-amber-400 text-slate-900' : 'bg-amber-100 text-amber-800'
                 }`}
               >
@@ -432,7 +432,7 @@ export default function HomePage() {
 
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-semibold transition shrink-0 ${
+            className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-semibold transition-all duration-300 ease-out active:scale-95 shrink-0 ${
               activeTab === 'analytics'
                 ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
                 : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50'
@@ -445,7 +445,7 @@ export default function HomePage() {
 
         {/* TAB 1: OVERVIEW DASHBOARD */}
         {activeTab === 'dashboard' && (
-          <div className="space-y-6">
+          <div className="space-y-6 animate-tab-enter">
             {/* 1. Core Financial Stat Cards (Today's Expense & Monthly Overview) */}
             <StatCards
               todayExpense={todayExpense}
@@ -525,42 +525,48 @@ export default function HomePage() {
 
         {/* TAB 2: FINANCIAL CALENDAR (DEDICATED FULL VIEW) */}
         {activeTab === 'calendar' && (
-          <FinancialCalendar
-            transactions={visibleTransactions}
-            useBengaliDigits={useBengaliDigits}
-            onAddTransaction={handleOpenAddModalForDate}
-            onEditTransaction={handleOpenEditTransactionModal}
-            onRefresh={() => fetchData(activeUserId)}
-          />
+          <div className="animate-tab-enter">
+            <FinancialCalendar
+              transactions={visibleTransactions}
+              useBengaliDigits={useBengaliDigits}
+              onAddTransaction={handleOpenAddModalForDate}
+              onEditTransaction={handleOpenEditTransactionModal}
+              onRefresh={() => fetchData(activeUserId)}
+            />
+          </div>
         )}
 
         {/* TAB 3: TRANSACTIONS HISTORY (DEDICATED SEPARATE VIEW) */}
         {activeTab === 'transactions' && (
-          <TransactionList
-            transactions={visibleTransactions}
-            useBengaliDigits={useBengaliDigits}
-            onRefresh={() => fetchData(activeUserId)}
-            isFamilyView={isFamilyView}
-            currentUserId={currentUser.id}
-            onOpenAddModal={() => setIsAddModalOpen(true)}
-            onEditTransaction={handleOpenEditTransactionModal}
-          />
+          <div className="animate-tab-enter">
+            <TransactionList
+              transactions={visibleTransactions}
+              useBengaliDigits={useBengaliDigits}
+              onRefresh={() => fetchData(activeUserId)}
+              isFamilyView={isFamilyView}
+              currentUserId={currentUser.id}
+              onOpenAddModal={() => setIsAddModalOpen(true)}
+              onEditTransaction={handleOpenEditTransactionModal}
+            />
+          </div>
         )}
 
-        {/* TAB 3: DEBTS & LOANS (DEDICATED SEPARATE VIEW) */}
+        {/* TAB 4: DEBTS & LOANS (DEDICATED SEPARATE VIEW) */}
         {activeTab === 'debts' && (
-          <DebtsTracker
-            debts={debts}
-            accounts={accounts.filter((a: any) => a.userId === currentUser.id)}
-            useBengaliDigits={useBengaliDigits}
-            onRefresh={() => fetchData(activeUserId)}
-            onOpenAddModal={() => setIsAddDebtModalOpen(true)}
-          />
+          <div className="animate-tab-enter">
+            <DebtsTracker
+              debts={debts}
+              accounts={accounts.filter((a: any) => a.userId === currentUser.id)}
+              useBengaliDigits={useBengaliDigits}
+              onRefresh={() => fetchData(activeUserId)}
+              onOpenAddModal={() => setIsAddDebtModalOpen(true)}
+            />
+          </div>
         )}
 
-        {/* TAB 4: ANALYTICS & BUDGET (DEDICATED VIEW) */}
+        {/* TAB 5: ANALYTICS & BUDGET (DEDICATED VIEW) */}
         {activeTab === 'analytics' && (
-          <div className="space-y-6">
+          <div className="space-y-6 animate-tab-enter">
             <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">

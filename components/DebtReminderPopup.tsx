@@ -80,8 +80,16 @@ export function DebtReminderPopup({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-amber-200 animate-in fade-in zoom-in-95 duration-150">
+    <div
+      className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-backdrop-fade"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) handleDismiss();
+      }}
+    >
+      <div
+        className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-amber-200 animate-modal-pop"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div className="flex items-center gap-2.5">
