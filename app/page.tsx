@@ -12,6 +12,7 @@ import { AddTransactionModal } from '@/components/AddTransactionModal';
 import { AiReportModal } from '@/components/AiReportModal';
 import { EditProfileModal } from '@/components/EditProfileModal';
 import { OnboardingSetup } from '@/components/OnboardingSetup';
+import { AddMemberModal } from '@/components/AddMemberModal';
 import { DebtsTracker } from '@/components/DebtsTracker';
 import { DebtReminderPopup } from '@/components/DebtReminderPopup';
 import { AddDebtModal } from '@/components/AddDebtModal';
@@ -21,7 +22,7 @@ import { RecentTransactionsPreview } from '@/components/RecentTransactionsPrevie
 import { AiChatbot } from '@/components/AiChatbot';
 import { AuthGate } from '@/components/AuthGate';
 import { LoadingScreen } from '@/components/LoadingScreen';
-import { Users, Copy, Check, Sparkles, LayoutDashboard, Receipt, HandCoins, BarChart3, CalendarDays } from 'lucide-react';
+import { Users, Copy, Check, Sparkles, LayoutDashboard, Receipt, HandCoins, BarChart3, CalendarDays, UserPlus } from 'lucide-react';
 import { isSameDay, toBengaliNumerals } from '@/lib/utils';
 import {
   checkShouldTriggerAutoPopup,
@@ -47,6 +48,7 @@ export default function HomePage() {
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isAddDebtModalOpen, setIsAddDebtModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<any | null>(null);
+  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [copiedInvite, setCopiedInvite] = useState(false);
 
   // Auto Expense Popup State (twice a day)
@@ -268,6 +270,10 @@ export default function HomePage() {
   const { currentUser, users, household, accounts, categories, budgets, transactions, debts = [], aiReports } =
     data;
 
+  // Check if current user is the main member / admin of the household
+  const currentMember = household?.members?.find((m: any) => m.userId === currentUser.id);
+  const isHouseholdAdmin = currentMember?.role === 'ADMIN' || currentUser?.role === 'ADMIN';
+
   // Filter transactions based on active view:
   // If Personal View: Only current user's transactions
   // If Family View: All FAMILY transactions + current user's PRIVATE transactions
@@ -360,20 +366,35 @@ export default function HomePage() {
           </div>
 
           {household && (
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 sm:p-4 border border-white/20 flex items-center justify-between sm:justify-start gap-3 w-full md:w-auto">
-              <div>
-                <div className="text-[11px] text-emerald-100 font-medium">ফ্যামিলি ইনভাইট কোড</div>
-                <div className="text-sm sm:text-base font-bold font-mono tracking-wider">
-                  {household.inviteCode}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto">
+              {/* Family Head / Admin Quick Add Member Button */}
+              {isFamilyView && isHouseholdAdmin && (
+                <button
+                  onClick={() => setIsAddMemberOpen(true)}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-3 rounded-2xl bg-white text-emerald-850 hover:bg-emerald-50 text-xs sm:text-sm font-bold shadow-md shadow-emerald-900/15 hover:shadow-lg transition-all duration-200 active:scale-95 shrink-0 text-emerald-900 cursor-pointer"
+                  title="পরিবারে নতুন সদস্য যুক্ত করুন"
+                >
+                  <UserPlus className="w-4 h-4 text-emerald-600" />
+                  <span>+ নতুন সদস্য যোগ করুন</span>
+                </button>
+              )}
+
+              {/* Family Invite Code Badge */}
+              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-white/20 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-[10px] sm:text-[11px] text-emerald-100 font-medium leading-none">ফ্যামিলি ইনভাইট কোড</div>
+                  <div className="text-xs sm:text-sm font-bold font-mono tracking-wider mt-0.5">
+                    {household.inviteCode}
+                  </div>
                 </div>
+                <button
+                  onClick={() => copyInviteCode(household.inviteCode)}
+                  className="p-1.5 sm:p-2 rounded-xl bg-white/20 hover:bg-white/30 transition text-white shrink-0 cursor-pointer"
+                  title="কোড কপি করুন"
+                >
+                  {copiedInvite ? <Check className="w-3.5 h-3.5 text-emerald-200" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
               </div>
-              <button
-                onClick={() => copyInviteCode(household.inviteCode)}
-                className="p-2 rounded-xl bg-white/20 hover:bg-white/30 transition text-white"
-                title="কোড কপি করুন"
-              >
-                {copiedInvite ? <Check className="w-4 h-4 text-emerald-200" /> : <Copy className="w-4 h-4" />}
-              </button>
             </div>
           )}
         </div>
@@ -534,6 +555,9 @@ export default function HomePage() {
                 useBengaliDigits={useBengaliDigits}
                 householdId={household.id}
                 onRefresh={() => fetchData(activeUserId)}
+                isAdmin={isHouseholdAdmin}
+                currentUserId={currentUser.id}
+                onOpenAddMember={() => setIsAddMemberOpen(true)}
               />
             )}
           </div>
@@ -674,6 +698,16 @@ export default function HomePage() {
         household={household}
         onSuccess={() => fetchData(activeUserId)}
       />
+
+      {/* Add Family Member Modal (Admin only) */}
+      {household && (
+        <AddMemberModal
+          isOpen={isAddMemberOpen}
+          onClose={() => setIsAddMemberOpen(false)}
+          householdId={household.id}
+          onRefresh={() => fetchData(activeUserId)}
+        />
+      )}
 
       {/* AI Financial Chatbot Assistant */}
       <AiChatbot
