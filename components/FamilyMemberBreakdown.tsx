@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Users2, ArrowUpCircle, ArrowDownCircle, Trash2 } from 'lucide-react';
+import { Users2, ArrowUpCircle, ArrowDownCircle, Trash2, X } from 'lucide-react';
 import { formatBDT } from '@/lib/utils';
 
 interface Member {
@@ -188,10 +188,33 @@ export function FamilyMemberBreakdown({
 
       {/* Add Member Modal */}
       {showAddMember && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
-            <h3 className="font-bold text-base text-slate-800 mb-3">পরিবারের নতুন সদস্য যুক্ত করুন</h3>
-            <form onSubmit={handleAddMember} className="space-y-3">
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-md flex items-start justify-center pt-14 sm:pt-20 p-4 overflow-y-auto animate-backdrop-fade"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowAddMember(false);
+          }}
+        >
+          <div
+            className="bg-white rounded-3xl max-w-sm w-full p-5 sm:p-6 shadow-2xl border border-slate-100 animate-modal-pop origin-top"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                  <Users2 className="w-4 h-4" />
+                </div>
+                <h3 className="font-bold text-base text-slate-800">পরিবারের নতুন সদস্য যুক্ত করুন</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddMember(false)}
+                className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddMember} className="space-y-3.5">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">
                   সদস্যের নাম *
@@ -201,7 +224,7 @@ export function FamilyMemberBreakdown({
                   placeholder="যেমন: বাবা, মা, তাসনিম, ফারহান"
                   value={memberName}
                   onChange={(e) => setMemberName(e.target.value)}
-                  className="w-full text-sm px-3 py-2 border border-slate-200 rounded-xl focus:outline-indigo-500"
+                  className="w-full text-sm px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-indigo-500"
                   required
                 />
               </div>
@@ -213,7 +236,7 @@ export function FamilyMemberBreakdown({
                 <select
                   value={memberRole}
                   onChange={(e) => setMemberRole(e.target.value)}
-                  className="w-full text-sm px-3 py-2 border border-slate-200 rounded-xl focus:outline-indigo-500 bg-white"
+                  className="w-full text-sm px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-indigo-500 bg-white"
                 >
                   <option value="MEMBER">নিয়মিত সদস্য (আয়-ব্যয় এন্ট্রি করতে পারবে)</option>
                   <option value="VIEW_ONLY">শুধু দেখতে পারবে (View Only)</option>
@@ -231,10 +254,10 @@ export function FamilyMemberBreakdown({
                   placeholder="যেমন: 1234"
                   value={memberPin}
                   onChange={(e) => setMemberPin(e.target.value)}
-                  className="w-full text-sm px-3 py-2 border border-slate-200 rounded-xl focus:outline-indigo-500 font-mono tracking-widest"
+                  className="w-full text-sm px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-indigo-500 font-mono tracking-widest"
                   required
                 />
-                <p className="text-[10px] text-slate-400 mt-1">
+                <p className="text-[11px] text-slate-400 mt-1">
                   💡 সদস্য তার নামের পাশে এই পিন দিয়ে অ্যাকাউন্টে লগইন করতে পারবেন।
                 </p>
               </div>
@@ -243,14 +266,14 @@ export function FamilyMemberBreakdown({
                 <button
                   type="button"
                   onClick={() => setShowAddMember(false)}
-                  className="flex-1 py-2 text-xs font-semibold border border-slate-200 rounded-xl hover:bg-slate-50"
+                  className="flex-1 py-2.5 text-xs font-semibold border border-slate-200 rounded-xl hover:bg-slate-50 transition"
                 >
                   বাতিল
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 py-2 text-xs font-semibold bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50"
+                  className="flex-1 py-2.5 text-xs font-semibold bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition disabled:opacity-50"
                 >
                   {loading ? 'যোগ হচ্ছে...' : 'যুক্ত করুন'}
                 </button>
