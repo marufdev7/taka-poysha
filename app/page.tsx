@@ -20,6 +20,7 @@ import { FinancialCalendar } from '@/components/FinancialCalendar';
 import { RecentTransactionsPreview } from '@/components/RecentTransactionsPreview';
 import { AiChatbot } from '@/components/AiChatbot';
 import { AuthGate } from '@/components/AuthGate';
+import { LoadingScreen } from '@/components/LoadingScreen';
 import { Users, Copy, Check, Sparkles, LayoutDashboard, Receipt, HandCoins, BarChart3, CalendarDays } from 'lucide-react';
 import { isSameDay, toBengaliNumerals } from '@/lib/utils';
 import {
@@ -218,16 +219,7 @@ export default function HomePage() {
   };
 
   if (!authChecked || (authUserId && loading)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm font-semibold text-emerald-400 font-['Hind_Siliguri',sans-serif]">
-            টাকা-পয়সা লোড হচ্ছে...
-          </p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   // If not authenticated or not logged in, show AuthGate (Lock screen)

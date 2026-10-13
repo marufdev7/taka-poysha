@@ -13,6 +13,7 @@ import {
   EyeOff,
   Sparkles,
   CheckCircle2,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface Profile {
@@ -213,9 +214,14 @@ export function AuthGate({ onLoginSuccess }: AuthGateProps) {
         {/* Main Content Area */}
         <div className="p-6">
           {loading ? (
-            <div className="py-12 text-center text-slate-500 text-sm flex flex-col items-center gap-3">
-              <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-              <span>নিরাপত্তা সিস্টেম প্রস্তুত হচ্ছে...</span>
+            <div className="py-10 text-center text-slate-500 text-xs flex flex-col items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-xs animate-pulse">
+                <ShieldCheck className="w-6 h-6" />
+              </div>
+              <div className="w-36 h-1 bg-slate-100 rounded-full overflow-hidden relative">
+                <div className="w-16 h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full animate-shimmer-wave" />
+              </div>
+              <span className="font-semibold text-slate-600">নিরাপত্তা সিস্টেম ও মেম্বার তালিকা প্রস্তুত হচ্ছে...</span>
             </div>
           ) : mode === 'select' ? (
             /* Mode 1: Select Profile */
