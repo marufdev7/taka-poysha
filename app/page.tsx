@@ -16,10 +16,11 @@ import { DebtsTracker } from '@/components/DebtsTracker';
 import { DebtReminderPopup } from '@/components/DebtReminderPopup';
 import { AddDebtModal } from '@/components/AddDebtModal';
 import { DailyAndIncomeBreakdown } from '@/components/DailyAndIncomeBreakdown';
+import { FinancialCalendar } from '@/components/FinancialCalendar';
 import { RecentTransactionsPreview } from '@/components/RecentTransactionsPreview';
 import { AiChatbot } from '@/components/AiChatbot';
 import { AuthGate } from '@/components/AuthGate';
-import { Users, Copy, Check, Sparkles, LayoutDashboard, Receipt, HandCoins, BarChart3 } from 'lucide-react';
+import { Users, Copy, Check, Sparkles, LayoutDashboard, Receipt, HandCoins, BarChart3, CalendarDays } from 'lucide-react';
 import { isSameDay, toBengaliNumerals } from '@/lib/utils';
 import {
   checkShouldTriggerAutoPopup,
@@ -35,10 +36,11 @@ export default function HomePage() {
   const [activeUserId, setActiveUserId] = useState<string>('');
   const [isFamilyView, setIsFamilyView] = useState(false);
   const [useBengaliDigits, setUseBengaliDigits] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'debts' | 'analytics'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'calendar' | 'transactions' | 'debts' | 'analytics'>('dashboard');
 
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addModalDefaultDate, setAddModalDefaultDate] = useState<string | undefined>(undefined);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isAiChatOpen, setIsAiChatOpen] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -139,12 +141,21 @@ export default function HomePage() {
   }, [loading, data]);
 
   const handleOpenManualAddModal = () => {
+    setAddModalDefaultDate(undefined);
+    setEditingTransaction(null);
+    setAutoPopupSlot(null);
+    setIsAddModalOpen(true);
+  };
+
+  const handleOpenAddModalForDate = (dateStr?: string) => {
+    setAddModalDefaultDate(dateStr);
     setEditingTransaction(null);
     setAutoPopupSlot(null);
     setIsAddModalOpen(true);
   };
 
   const handleOpenEditTransactionModal = (tx: any) => {
+    setAddModalDefaultDate(undefined);
     setEditingTransaction(tx);
     setAutoPopupSlot(null);
     setIsAddModalOpen(true);
@@ -155,6 +166,7 @@ export default function HomePage() {
       markAutoPopupShown(autoPopupSlot as 1 | 2);
       setAutoPopupSlot(null);
     }
+    setAddModalDefaultDate(undefined);
     setEditingTransaction(null);
     setIsAddModalOpen(false);
   };
@@ -164,6 +176,7 @@ export default function HomePage() {
       markAutoPopupShown(autoPopupSlot as 1 | 2);
       setAutoPopupSlot(null);
     }
+    setAddModalDefaultDate(undefined);
     setEditingTransaction(null);
     setIsAddModalOpen(false);
     fetchData(activeUserId);
@@ -364,6 +377,18 @@ export default function HomePage() {
           </button>
 
           <button
+            onClick={() => setActiveTab('calendar')}
+            className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-semibold transition shrink-0 ${
+              activeTab === 'calendar'
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            <CalendarDays className="w-4 h-4" />
+            <span>আয়-ব্যয় ক্যালেন্ডার</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('transactions')}
             className={`flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-semibold transition shrink-0 ${
               activeTab === 'transactions'
@@ -447,6 +472,10 @@ export default function HomePage() {
             <DailyAndIncomeBreakdown
               transactions={visibleTransactions}
               useBengaliDigits={useBengaliDigits}
+              onNavigateToCalendar={() => {
+                setActiveTab('calendar');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
             />
 
             {/* 4. Compact Recent Transactions (Latest 5 items, keeps page tidy!) */}
@@ -494,7 +523,18 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* TAB 2: TRANSACTIONS HISTORY (DEDICATED SEPARATE VIEW) */}
+        {/* TAB 2: FINANCIAL CALENDAR (DEDICATED FULL VIEW) */}
+        {activeTab === 'calendar' && (
+          <FinancialCalendar
+            transactions={visibleTransactions}
+            useBengaliDigits={useBengaliDigits}
+            onAddTransaction={handleOpenAddModalForDate}
+            onEditTransaction={handleOpenEditTransactionModal}
+            onRefresh={() => fetchData(activeUserId)}
+          />
+        )}
+
+        {/* TAB 3: TRANSACTIONS HISTORY (DEDICATED SEPARATE VIEW) */}
         {activeTab === 'transactions' && (
           <TransactionList
             transactions={visibleTransactions}
@@ -581,6 +621,7 @@ export default function HomePage() {
         autoPopupSlot={autoPopupSlot}
         onSkipToday={handleSkipAutoPopupToday}
         transactionToEdit={editingTransaction}
+        defaultDate={addModalDefaultDate}
       />
 
       {/* Add Debt / Loan Modal */}

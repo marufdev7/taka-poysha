@@ -37,6 +37,7 @@ interface AddTransactionModalProps {
   autoPopupSlot?: number | null;
   onSkipToday?: () => void;
   transactionToEdit?: any | null;
+  defaultDate?: string;
 }
 
 export function AddTransactionModal({
@@ -51,6 +52,7 @@ export function AddTransactionModal({
   autoPopupSlot = null,
   onSkipToday,
   transactionToEdit = null,
+  defaultDate,
 }: AddTransactionModalProps) {
   const [type, setType] = useState<'INCOME' | 'EXPENSE' | 'TRANSFER'>('EXPENSE');
   const [amount, setAmount] = useState('');
@@ -95,7 +97,7 @@ export function AddTransactionModal({
       setCategoryId('');
       setAccountId(accounts[0]?.id || '');
       setToAccountId(accounts[1]?.id || '');
-      setDate(getLocalDateString());
+      setDate(defaultDate || getLocalDateString());
       const now = new Date();
       const hh = String(now.getHours()).padStart(2, '0');
       const mm = String(now.getMinutes()).padStart(2, '0');
@@ -103,7 +105,7 @@ export function AddTransactionModal({
       setNote('');
       setVisibility('FAMILY');
     }
-  }, [isOpen, transactionToEdit, isAutoPopup, accounts]);
+  }, [isOpen, transactionToEdit, isAutoPopup, accounts, defaultDate]);
 
   // Handle Escape key dismiss
   React.useEffect(() => {

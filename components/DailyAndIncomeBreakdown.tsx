@@ -37,11 +37,13 @@ interface Transaction {
 interface DailyAndIncomeBreakdownProps {
   transactions: Transaction[];
   useBengaliDigits: boolean;
+  onNavigateToCalendar?: () => void;
 }
 
 export function DailyAndIncomeBreakdown({
   transactions,
   useBengaliDigits,
+  onNavigateToCalendar,
 }: DailyAndIncomeBreakdownProps) {
   const [spendingView, setSpendingView] = useState<'daily' | 'monthly'>('daily');
 
@@ -391,6 +393,17 @@ export function DailyAndIncomeBreakdown({
                 <CalendarDays className="w-3.5 h-3.5" />
                 <span>মাসিক হিসাব</span>
               </button>
+              {onNavigateToCalendar && (
+                <button
+                  type="button"
+                  onClick={onNavigateToCalendar}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 transition-all cursor-pointer font-bold ml-0.5 border border-emerald-200/60 bg-white/80"
+                  title="পুরোনো ও যেকোনো মাসের দিনভিত্তিক হিসাব ক্যালেন্ডারে দেখুন"
+                >
+                  <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>ক্যালেন্ডার</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -607,10 +620,22 @@ export function DailyAndIncomeBreakdown({
           )}
         </div>
 
-        <div className="text-center pt-3 border-t border-slate-100 mt-3 text-xs text-slate-400">
-          {spendingView === 'daily'
-            ? 'প্রতিদিনের ব্যয়ের তথ্য স্বয়ংক্রিয়ভাবে তারিখ মিলিয়ে সংকলিত হয়'
-            : 'প্রতি মাসের ব্যয়ের তথ্য এবং দৈনিক গড়ের সার্বিক হিসাব'}
+        <div className="flex items-center justify-between pt-3 border-t border-slate-100 mt-3 text-xs text-slate-400">
+          <span>
+            {spendingView === 'daily'
+              ? 'প্রতিদিনের ব্যয়ের তথ্য স্বয়ংক্রিয়ভাবে সংকলিত হয়'
+              : 'প্রতি মাসের ব্যয়ের তথ্য এবং দৈনিক গড়ের সার্বিক হিসাব'}
+          </span>
+          {onNavigateToCalendar && (
+            <button
+              type="button"
+              onClick={onNavigateToCalendar}
+              className="text-emerald-600 hover:text-emerald-700 font-semibold hover:underline flex items-center gap-1 cursor-pointer shrink-0 ml-2"
+            >
+              <span>ক্যালেন্ডারে দেখুন</span>
+              <ArrowRight className="w-3 h-3" />
+            </button>
+          )}
         </div>
       </div>
     </div>
