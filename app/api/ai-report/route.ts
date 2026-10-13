@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getAuthenticatedUser } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
@@ -90,8 +91,16 @@ ${JSON.stringify(summaryJSON, null, 2)}
 
 export async function POST(request: Request) {
   try {
+    const auth = await getAuthenticatedUser(request);
+    if (!auth) {
+      return NextResponse.json({ error: 'অননুমোদিত অনুরোধ। অনুগ্রহ করে লগইন করুন।' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { householdId, userId, month = '2026-10', isFamilyView = true } = body;
+
+    const effectiveUserId = userId || auth.userId;
+    const effectiveHouseholdId = householdId || auth.householdId;
 
     // Parse month (e.g. '2026-10')
     const [yearStr, monthStr] = month.split('-');
@@ -221,11 +230,7 @@ export async function POST(request: Request) {
     let aiContent = '';
     let aiModelUsed = 'Built-in Rule Engine (Local)';
 
-    const geminiKey =
-      process.env.GEMINI_API_KEY ||
-      (typeof Buffer !== 'undefined'
-        ? Buffer.from('QVEuQWI4Uk42SWFQbXBicUQweUJEY0NRWDVlTUIxc3kzSEJ1dm9kcE1RTnNDWHIxNmFoa0E=', 'base64').toString('utf-8')
-        : '');
+    const geminiKey = process.env.GEMINI_API_KEY || '';
     const claudeKey = process.env.ANTHROPIC_API_KEY;
 
     if (geminiKey && geminiKey.trim() !== '') {

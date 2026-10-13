@@ -1,12 +1,23 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { hashPin } from '@/lib/authSecurity';
+import { createSessionToken, SESSION_COOKIE_NAME } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   try {
+    // Prevent re-running setup if an admin or household already exists
+    const existingCount = await prisma.user.count();
+    if (existingCount > 0) {
+      return NextResponse.json(
+        { error: 'সিস্টেম ইতিমধ্যে ইনিশিয়ালাইজ করা হয়েছে। নতুন মেম্বার যুক্ত হতে ইনভিটেশন কোড ব্যবহার করুন।' },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
-    const { name, email, householdName, wallets } = body;
+    const { name, email, householdName, wallets, pin } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json({ error: 'আপনার নাম আবশ্যক' }, { status: 400 });
@@ -15,12 +26,14 @@ export async function POST(request: Request) {
     const cleanName = name.trim();
     const cleanEmail = (email && email.trim()) || `${Date.now()}@local.app`;
     const cleanHouseholdName = (householdName && householdName.trim()) || 'আমার পরিবার';
+    const cleanPin = pin && String(pin).trim().length >= 4 ? hashPin(String(pin).trim()) : null;
 
     // 1. Create User
     const user = await prisma.user.create({
       data: {
         name: cleanName,
         email: cleanEmail,
+        pin: cleanPin,
       },
     });
 
@@ -42,7 +55,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // 4. Create standard categories for this household if none exist
+    // 4. Create standard categories for this household
     const defaultCategories = [
       { name: 'বেতন (Salary)', type: 'INCOME', color: '#10b981' },
       { name: 'ব্যবসা ও ফ্রিল্যান্স', type: 'INCOME', color: '#06b6d4' },
@@ -65,14 +78,15 @@ export async function POST(request: Request) {
       })),
     });
 
-    // 5. Create initial wallets (selected or default Cash, bKash, Bank with 0 balance)
-    const walletList = Array.isArray(wallets) && wallets.length > 0
-      ? wallets
-      : [
-          { name: 'ক্যাশ টাকা', type: 'CASH', balance: 0 },
-          { name: 'bKash', type: 'BKASH', balance: 0 },
-          { name: 'ব্যাংক একাউন্ট', type: 'BANK', balance: 0 },
-        ];
+    // 5. Create initial wallets
+    const walletList =
+      Array.isArray(wallets) && wallets.length > 0
+        ? wallets
+        : [
+            { name: 'ক্যাশ টাকা', type: 'CASH', balance: 0 },
+            { name: 'bKash', type: 'BKASH', balance: 0 },
+            { name: 'ব্যাংক একাউন্ট', type: 'BANK', balance: 0 },
+          ];
 
     await prisma.account.createMany({
       data: walletList.map((w: any) => ({
@@ -83,7 +97,22 @@ export async function POST(request: Request) {
       })),
     });
 
-    return NextResponse.json({ success: true, user, household });
+    // 6. Issue initial session token & HttpOnly cookie
+    const token = createSessionToken(user.id, 'ADMIN');
+
+    const response = NextResponse.json({ success: true, token, user, household });
+
+    response.cookies.set({
+      name: SESSION_COOKIE_NAME,
+      value: token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60,
+    });
+
+    return response;
   } catch (error: any) {
     console.error('Setup error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

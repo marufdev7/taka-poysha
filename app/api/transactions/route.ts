@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { parseDateSafe } from '@/lib/utils';
+import { getAuthenticatedUser } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   try {
+    const auth = await getAuthenticatedUser(request);
+    if (!auth) {
+      return NextResponse.json({ error: 'অননুমোদিত অনুরোধ। অনুগ্রহ করে লগইন করুন।' }, { status: 401 });
+    }
+
     const body = await request.json();
     const {
       userId,
@@ -25,12 +31,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'সঠিক টাকার পরিমাণ দিন' }, { status: 400 });
     }
 
+    const effectiveUserId = userId || auth.userId;
+    const effectiveHouseholdId = householdId || auth.householdId;
+
+    if (!effectiveHouseholdId) {
+      return NextResponse.json({ error: 'পারিবারিক অ্যাকাউন্ট পাওয়া যায়নি' }, { status: 400 });
+    }
+
     // Run transaction and account balance updates atomically
     const result = await prisma.$transaction(async (tx) => {
       const transaction = await tx.transaction.create({
         data: {
-          userId,
-          householdId,
+          userId: effectiveUserId,
+          householdId: effectiveHouseholdId,
           accountId,
           toAccountId: type === 'TRANSFER' ? toAccountId : null,
           categoryId: type === 'TRANSFER' ? null : categoryId,
@@ -82,6 +95,11 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const auth = await getAuthenticatedUser(request);
+    if (!auth) {
+      return NextResponse.json({ error: 'অননুমোদিত অনুরোধ' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -95,6 +113,11 @@ export async function DELETE(request: Request) {
 
     if (!existing) {
       return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
+    }
+
+    // Verify ownership: must belong to user or same household
+    if (existing.userId !== auth.userId && existing.householdId !== auth.householdId) {
+      return NextResponse.json({ error: 'এই লেনদেন মুছে ফেলার অনুমতি নেই' }, { status: 403 });
     }
 
     await prisma.$transaction(async (tx) => {
@@ -120,20 +143,26 @@ export async function DELETE(request: Request) {
         });
       }
 
+      // Delete transaction
       await tx.transaction.delete({
         where: { id },
       });
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: 'Transaction deleted and balance adjusted' });
   } catch (error: any) {
     console.error('Error deleting transaction:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-export async function PATCH(request: Request) {
+export async function PUT(request: Request) {
   try {
+    const auth = await getAuthenticatedUser(request);
+    if (!auth) {
+      return NextResponse.json({ error: 'অননুমোদিত অনুরোধ' }, { status: 401 });
+    }
+
     const body = await request.json();
     const {
       id,
@@ -163,6 +192,11 @@ export async function PATCH(request: Request) {
 
     if (!existing) {
       return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
+    }
+
+    // Verify ownership
+    if (existing.userId !== auth.userId && existing.householdId !== auth.householdId) {
+      return NextResponse.json({ error: 'এই লেনদেন এডিট করার অনুমতি নেই' }, { status: 403 });
     }
 
     // Atomic transaction: Revert old balances, apply new balances, update transaction
@@ -214,19 +248,19 @@ export async function PATCH(request: Request) {
         });
       }
 
-      // 3. Update transaction record
+      // 3. Update the transaction record
       const updated = await tx.transaction.update({
         where: { id },
         data: {
+          userId: userId || existing.userId,
           accountId: targetAccountId,
           toAccountId: targetToAccountId,
-          categoryId: type === 'TRANSFER' ? null : (categoryId || null),
+          categoryId: type === 'TRANSFER' ? null : (categoryId !== undefined ? categoryId : existing.categoryId),
           type,
           amount: parsedAmount,
           date: date ? parseDateSafe(date) : existing.date,
           note: note !== undefined ? note : existing.note,
           visibility: visibility || existing.visibility,
-          ...(userId ? { userId } : {}),
         },
         include: {
           user: true,
@@ -241,7 +275,7 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json(result);
   } catch (error: any) {
-    console.error('Error editing transaction:', error);
+    console.error('Error updating transaction:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

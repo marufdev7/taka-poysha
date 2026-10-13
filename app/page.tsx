@@ -201,15 +201,39 @@ export default function HomePage() {
   };
 
   const handleReset = async () => {
-    if (confirm('আপনি কি সমস্ত লেনদেন এবং ব্যালেন্স মুছে সম্পূর্ণ নতুন (০) থেকে শুরু করতে চান?')) {
-      const res = await fetch('/api/reset', { method: 'POST' });
+    if (!confirm('সতর্কতা: আপনি কি সমস্ত লেনদেন এবং ব্যালেন্স মুছে সম্পূর্ণ নতুন (০) থেকে শুরু করতে চান?')) {
+      return;
+    }
+    const adminPin = prompt('নিরাপত্তা যাচাই: রিসেট নিশ্চিত করতে আপনার অ্যাডমিন সিকিউরিটি পিন (PIN) লিখুন:');
+    if (!adminPin || !adminPin.trim()) {
+      alert('পিন প্রদান না করায় রিসেট বাতিল করা হয়েছে।');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: authUserId, adminPin: adminPin.trim() }),
+      });
+      const result = await res.json();
       if (res.ok) {
+        alert(result.message || 'সকল হিসাব সফলভাবে রিসেট করা হয়েছে।');
         fetchData(activeUserId);
+      } else {
+        alert(result.error || 'রিসেট সম্পন্ন করা যায়নি।');
       }
+    } catch {
+      alert('সার্ভার এরর! পুনরায় চেষ্টা করুন।');
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // Ignore network errors on logout
+    }
     if (typeof window !== 'undefined') {
       localStorage.removeItem('auth_user_id');
       localStorage.removeItem('auth_user_name');

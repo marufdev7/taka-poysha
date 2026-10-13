@@ -1,18 +1,25 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { parseDateSafe } from '@/lib/utils';
+import { getAuthenticatedUser } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
+    const auth = await getAuthenticatedUser(request);
+    if (!auth) {
+      return NextResponse.json({ error: 'অননুমোদিত অনুরোধ' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
-    const householdId = searchParams.get('householdId');
+    const householdId = searchParams.get('householdId') || auth.householdId;
 
     const where: any = {};
     if (userId) where.userId = userId;
     else if (householdId) where.householdId = householdId;
+    else where.userId = auth.userId;
 
     const debts = await prisma.debt.findMany({
       where,
@@ -28,10 +35,15 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const auth = await getAuthenticatedUser(request);
+    if (!auth) {
+      return NextResponse.json({ error: 'অননুমোদিত অনুরোধ' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { userId, householdId, personName, type, amount, dueDate, note } = body;
 
-    if (!userId || !personName || !type || !amount || !dueDate) {
+    if (!personName || !type || !amount || !dueDate) {
       return NextResponse.json({ error: 'সকল তথ্য সঠিকভাবে পূরণ করুন' }, { status: 400 });
     }
 
@@ -40,10 +52,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'টাকার পরিমাণ সঠিক দিন' }, { status: 400 });
     }
 
+    const effectiveUserId = userId || auth.userId;
+    const effectiveHouseholdId = householdId || auth.householdId;
+
     const debt = await prisma.debt.create({
       data: {
-        userId,
-        householdId,
+        userId: effectiveUserId,
+        householdId: effectiveHouseholdId,
         personName: personName.trim(),
         type, // 'RECEIVABLE' (পাওনা) or 'PAYABLE' (দেনা)
         amount: parsedAmount,
@@ -62,6 +77,11 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    const auth = await getAuthenticatedUser(request);
+    if (!auth) {
+      return NextResponse.json({ error: 'অননুমোদিত অনুরোধ' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { id, status, amount, dueDate, note, accountId } = body;
 
@@ -75,6 +95,11 @@ export async function PATCH(request: Request) {
 
     if (!existingDebt) {
       return NextResponse.json({ error: 'Debt not found' }, { status: 404 });
+    }
+
+    // Verify ownership
+    if (existingDebt.userId !== auth.userId && existingDebt.householdId !== auth.householdId) {
+      return NextResponse.json({ error: 'এই দেনা-পাওনা পরিবর্তনের অনুমতি নেই' }, { status: 403 });
     }
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -98,86 +123,74 @@ export async function PATCH(request: Request) {
           if (member) {
             effectiveHouseholdId = member.householdId;
           } else {
-            const h = await tx.household.findFirst();
-            effectiveHouseholdId = h?.id || '';
+            const anyHousehold = await tx.household.findFirst();
+            if (anyHousehold) effectiveHouseholdId = anyHousehold.id;
           }
         }
 
-        if (targetAccount && effectiveHouseholdId) {
+        if (targetAccount) {
+          let category = await tx.category.findFirst({
+            where: {
+              name: existingDebt.type === 'PAYABLE' ? 'দেনা পরিশোধ' : 'পাওনা আদায়',
+            },
+          });
+
+          if (!category && effectiveHouseholdId) {
+            category = await tx.category.create({
+              data: {
+                householdId: effectiveHouseholdId,
+                name: existingDebt.type === 'PAYABLE' ? 'দেনা পরিশোধ' : 'পাওনা আদায়',
+                type: existingDebt.type === 'PAYABLE' ? 'EXPENSE' : 'INCOME',
+                color: existingDebt.type === 'PAYABLE' ? '#ef4444' : '#10b981',
+              },
+            });
+          }
+
           if (existingDebt.type === 'PAYABLE') {
-            // দেনা পরিশোধ: ওয়ালেট ব্যালেন্স থেকে মাইনাস (decrement)
             await tx.account.update({
               where: { id: targetAccount.id },
               data: { balance: { decrement: existingDebt.amount } },
             });
 
-            // Find or create 'অন্যান্য খরচ' category
-            let expenseCategory = await tx.category.findFirst({
-              where: {
-                householdId: effectiveHouseholdId,
-                type: 'EXPENSE',
-                name: { contains: 'অন্যান্য' },
-              },
-            });
-            if (!expenseCategory) {
-              expenseCategory = await tx.category.findFirst({
-                where: { householdId: effectiveHouseholdId, type: 'EXPENSE' },
+            if (effectiveHouseholdId) {
+              await tx.transaction.create({
+                data: {
+                  userId: existingDebt.userId,
+                  householdId: effectiveHouseholdId,
+                  accountId: targetAccount.id,
+                  categoryId: category ? category.id : null,
+                  type: 'EXPENSE',
+                  amount: existingDebt.amount,
+                  date: new Date(),
+                  note: `দেনা পরিশোধ: ${existingDebt.personName} (${existingDebt.note || 'সম্পূর্ণ পরিশোধ'})`,
+                  visibility: 'FAMILY',
+                },
               });
             }
-
-            // Create EXPENSE transaction log
-            await tx.transaction.create({
-              data: {
-                userId: existingDebt.userId,
-                householdId: effectiveHouseholdId,
-                accountId: targetAccount.id,
-                categoryId: expenseCategory?.id || undefined,
-                type: 'EXPENSE',
-                amount: existingDebt.amount,
-                date: new Date(),
-                note: `ধার পরিশোধ (${existingDebt.personName})`,
-                visibility: 'FAMILY',
-              },
-            });
           } else if (existingDebt.type === 'RECEIVABLE') {
-            // পাওনা টাকা আদায়: ওয়ালেট ব্যালেন্সে যোগ (increment)
             await tx.account.update({
               where: { id: targetAccount.id },
               data: { balance: { increment: existingDebt.amount } },
             });
 
-            // Find or create 'অন্যান্য আয়' category
-            let incomeCategory = await tx.category.findFirst({
-              where: {
-                householdId: effectiveHouseholdId,
-                type: 'INCOME',
-                name: { contains: 'অন্যান্য' },
-              },
-            });
-            if (!incomeCategory) {
-              incomeCategory = await tx.category.findFirst({
-                where: { householdId: effectiveHouseholdId, type: 'INCOME' },
+            if (effectiveHouseholdId) {
+              await tx.transaction.create({
+                data: {
+                  userId: existingDebt.userId,
+                  householdId: effectiveHouseholdId,
+                  accountId: targetAccount.id,
+                  categoryId: category ? category.id : null,
+                  type: 'INCOME',
+                  amount: existingDebt.amount,
+                  date: new Date(),
+                  note: `পাওনা আদায়: ${existingDebt.personName} (${existingDebt.note || 'সম্পূর্ণ আদায়'})`,
+                  visibility: 'FAMILY',
+                },
               });
             }
-
-            // Create INCOME transaction log
-            await tx.transaction.create({
-              data: {
-                userId: existingDebt.userId,
-                householdId: effectiveHouseholdId,
-                accountId: targetAccount.id,
-                categoryId: incomeCategory?.id || undefined,
-                type: 'INCOME',
-                amount: existingDebt.amount,
-                date: new Date(),
-                note: `পাওনা টাকা গ্রহণ (${existingDebt.personName})`,
-                visibility: 'FAMILY',
-              },
-            });
           }
         }
       } else if (status === 'PENDING' && existingDebt.status === 'SETTLED') {
-        // If un-settling, revert balance
         let targetAccount = null;
         if (accountId) {
           targetAccount = await tx.account.findUnique({ where: { id: accountId } });
@@ -190,13 +203,11 @@ export async function PATCH(request: Request) {
 
         if (targetAccount) {
           if (existingDebt.type === 'PAYABLE') {
-            // Revert deduction -> add back
             await tx.account.update({
               where: { id: targetAccount.id },
               data: { balance: { increment: existingDebt.amount } },
             });
           } else if (existingDebt.type === 'RECEIVABLE') {
-            // Revert increment -> subtract
             await tx.account.update({
               where: { id: targetAccount.id },
               data: { balance: { decrement: existingDebt.amount } },
@@ -226,11 +237,28 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const auth = await getAuthenticatedUser(request);
+    if (!auth) {
+      return NextResponse.json({ error: 'অননুমোদিত অনুরোধ' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
     if (!id) {
       return NextResponse.json({ error: 'Debt ID is required' }, { status: 400 });
+    }
+
+    const existingDebt = await prisma.debt.findUnique({
+      where: { id },
+    });
+
+    if (!existingDebt) {
+      return NextResponse.json({ error: 'Debt not found' }, { status: 404 });
+    }
+
+    if (existingDebt.userId !== auth.userId && existingDebt.householdId !== auth.householdId) {
+      return NextResponse.json({ error: 'এই দেনা-পাওনা মুছে ফেলার অনুমতি নেই' }, { status: 403 });
     }
 
     await prisma.debt.delete({

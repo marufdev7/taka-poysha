@@ -1,19 +1,28 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getAuthenticatedUser } from '@/lib/session';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
   try {
+    const auth = await getAuthenticatedUser(request);
+    if (!auth) {
+      return NextResponse.json({ error: 'অননুমোদিত অনুরোধ' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { householdId, categoryId, month, limitAmount } = body;
 
-    if (!householdId || !categoryId || !month) {
+    const targetHouseholdId = householdId || auth.householdId;
+    if (!targetHouseholdId || !categoryId || !month) {
       return NextResponse.json({ error: 'সকল তথ্য আবশ্যক' }, { status: 400 });
     }
 
     const budget = await prisma.budget.upsert({
       where: {
         householdId_categoryId_month: {
-          householdId,
+          householdId: targetHouseholdId,
           categoryId,
           month,
         },
@@ -22,7 +31,7 @@ export async function POST(request: Request) {
         limitAmount: parseFloat(limitAmount),
       },
       create: {
-        householdId,
+        householdId: targetHouseholdId,
         categoryId,
         month,
         limitAmount: parseFloat(limitAmount),
@@ -41,11 +50,28 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const auth = await getAuthenticatedUser(request);
+    if (!auth) {
+      return NextResponse.json({ error: 'অননুমোদিত অনুরোধ' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
     if (!id) {
       return NextResponse.json({ error: 'বাজেট আইডি আবশ্যক' }, { status: 400 });
+    }
+
+    const existing = await prisma.budget.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: 'বাজেট পাওয়া যায়নি' }, { status: 404 });
+    }
+
+    if (existing.householdId !== auth.householdId) {
+      return NextResponse.json({ error: 'এই বাজেট মুছে ফেলার অনুমতি নেই' }, { status: 403 });
     }
 
     await prisma.budget.delete({

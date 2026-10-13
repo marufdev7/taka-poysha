@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { hashPin } from '@/lib/authSecurity';
+import { createSessionToken, SESSION_COOKIE_NAME } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,16 +41,17 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create user
+    // 1. Create user with cryptographically hashed PIN
+    const hashedPin = hashPin(String(pin).trim());
     const newUser = await prisma.user.create({
       data: {
         name: name.trim(),
         email: `${Date.now()}@local.app`,
-        pin: String(pin).trim(),
+        pin: hashedPin,
       },
     });
 
-    // Link user to household as MEMBER
+    // 2. Link user to household as MEMBER
     await prisma.householdMember.create({
       data: {
         householdId: household.id,
@@ -57,7 +60,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // Create a default cash wallet for this new member
+    // 3. Create a default cash wallet for this new member
     await prisma.account.create({
       data: {
         userId: newUser.id,
@@ -67,8 +70,12 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({
+    // 4. Issue session token and HttpOnly cookie
+    const token = createSessionToken(newUser.id, 'MEMBER');
+
+    const response = NextResponse.json({
       success: true,
+      token,
       message: `সফলভাবে "${household.name}" পরিবারে যুক্ত হয়েছেন!`,
       user: {
         id: newUser.id,
@@ -78,6 +85,18 @@ export async function POST(request: Request) {
         householdId: household.id,
       },
     });
+
+    response.cookies.set({
+      name: SESSION_COOKIE_NAME,
+      value: token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60,
+    });
+
+    return response;
   } catch (error: any) {
     console.error('Join with invite code error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

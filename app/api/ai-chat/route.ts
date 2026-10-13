@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { formatBDT, formatMonthBengali, toBengaliNumerals } from '@/lib/utils';
+import { getAuthenticatedUser } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,6 +54,14 @@ async function callGemini(apiKey: string, prompt: string, history: Array<{ role:
 
 export async function POST(request: Request) {
   try {
+    const auth = await getAuthenticatedUser(request);
+    if (!auth) {
+      return NextResponse.json(
+        { reply: 'অননুমোদিত অনুরোধ। AI আর্থিক সহকারী ব্যবহারের জন্য অনুগ্রহ করে লগইন করুন।' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const {
       message = '',
@@ -87,8 +96,8 @@ export async function POST(request: Request) {
     const endOfToday = new Date(currentYear, currentMonthIndex, today.getDate(), 23, 59, 59);
 
     // Resolve effectiveUserId and effectiveHouseholdId
-    let effectiveUserId = userId;
-    let effectiveHouseholdId = householdId;
+    let effectiveUserId = userId || auth.userId;
+    let effectiveHouseholdId = householdId || auth.householdId;
 
     if (!effectiveUserId) {
       const activeMember = await prisma.householdMember.findFirst({
@@ -379,12 +388,8 @@ export async function POST(request: Request) {
       }),
     };
 
-    // Try Gemini API if key is present
-    const geminiKey =
-      process.env.GEMINI_API_KEY ||
-      (typeof Buffer !== 'undefined'
-        ? Buffer.from('QVEuQWI4Uk42SWFQbXBicUQweUJEY0NRWDVlTUIxc3kzSEJ1dm9kcE1RTnNDWHIxNmFoa0E=', 'base64').toString('utf-8')
-        : '');
+    // Try Gemini API if key is present in environment
+    const geminiKey = process.env.GEMINI_API_KEY || '';
     if (geminiKey && geminiKey.trim() !== '') {
       try {
         const systemPrompt = `তুমি "টাকা-পয়সা AI আর্থিক সহকারী" (Personal Financial AI Assistant)। ব্যবহারকারীর চলতি মাসের (${financialContext.currentMonth}) সকল আর্থিক তথ্য, দৈনিক হিসাব (dailyBreakdown), প্রতিটি বাজেট এবং প্রতিটি লেনদেনের তালিকা (allTransactionsList) নিচে দেওয়া হলো:

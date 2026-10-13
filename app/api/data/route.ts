@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getAuthenticatedUser } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,28 +9,15 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const requestedUserId = searchParams.get('userId');
 
-    // Fetch all users
+    // 1. Fetch all users
     const users = await prisma.user.findMany({
       orderBy: { createdAt: 'asc' },
     });
 
+    // If completely new instance (zero users), allow onboarding
     if (users.length === 0) {
       return NextResponse.json({
         isNewUser: true,
-        currentUser: null,
-        users: [],
-        household: null,
-        accounts: [],
-        categories: [],
-        budgets: [],
-        transactions: [],
-        aiReports: [],
-      });
-    }
-
-    if (!requestedUserId) {
-      return NextResponse.json({
-        authenticated: false,
         currentUser: null,
         users: [],
         household: null,
@@ -42,12 +30,14 @@ export async function GET(request: Request) {
       });
     }
 
-    const currentUser = users.find((u) => u.id === requestedUserId);
-    if (!currentUser) {
+    // 2. Authenticate the request using cryptographic session token or HttpOnly cookie
+    const auth = await getAuthenticatedUser(request);
+
+    if (!auth) {
       return NextResponse.json(
         {
           authenticated: false,
-          error: 'ব্যবহারকারী খুঁজে পাওয়া যায়নি বা সেশন সমাপ্ত হয়েছে',
+          error: 'অননুমোদিত অনুরোধ। অনুগ্রহ করে পিন দিয়ে লগইন করুন।',
           currentUser: null,
           users: [],
           household: null,
@@ -62,7 +52,11 @@ export async function GET(request: Request) {
       );
     }
 
-    // Fetch household for this user
+    // 3. Resolve active current user
+    const targetUserId = requestedUserId || auth.userId;
+    const currentUser = users.find((u) => u.id === targetUserId) || auth.user;
+
+    // 4. Fetch household for this user
     const membership = await prisma.householdMember.findFirst({
       where: { userId: currentUser.id },
       include: {
@@ -84,6 +78,17 @@ export async function GET(request: Request) {
     });
 
     const household = membership?.household;
+
+    // Authorization check: If requesting another user's view, verify they belong to the same household!
+    if (household && auth.householdId && household.id !== auth.householdId) {
+      return NextResponse.json(
+        {
+          authenticated: false,
+          error: 'অননুমোদিত পারিবারিক অ্যাক্সেস',
+        },
+        { status: 403 }
+      );
+    }
 
     // Fetch accounts
     const accounts = await prisma.account.findMany({
