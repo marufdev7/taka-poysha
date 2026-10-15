@@ -250,7 +250,11 @@ export function AddTransactionModal({
     }
   };
 
-  const quickAmounts = [500, 1000, 2000, 5000, 10000];
+  // Context-aware everyday amounts for daily transactions in Bangladesh
+  const quickAmounts =
+    type === 'EXPENSE'
+      ? [20, 50, 100, 200, 500, 1000]
+      : [50, 100, 200, 500, 1000, 2000];
 
   return (
     <div
@@ -360,17 +364,28 @@ export function AddTransactionModal({
               />
             </div>
             {/* Quick amount chips */}
-            <div className="flex gap-1.5 mt-2 overflow-x-auto pb-1">
-              {quickAmounts.map((q) => (
-                <button
-                  type="button"
-                  key={q}
-                  onClick={() => setAmount(q.toString())}
-                  className="px-2.5 py-1 text-[11px] rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium shrink-0 transition"
-                >
-                  +{q}
-                </button>
-              ))}
+            <div className="flex gap-1.5 mt-2 overflow-x-auto pb-1 no-scrollbar">
+              {quickAmounts.map((q) => {
+                const isSelected = amount === q.toString();
+                return (
+                  <button
+                    type="button"
+                    key={q}
+                    onClick={() => setAmount(q.toString())}
+                    className={`px-2.5 py-1 text-[11px] rounded-lg font-semibold shrink-0 transition active:scale-95 ${
+                      isSelected
+                        ? type === 'EXPENSE'
+                          ? 'bg-rose-600 text-white shadow-xs'
+                          : type === 'INCOME'
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    }`}
+                  >
+                    +{q}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
