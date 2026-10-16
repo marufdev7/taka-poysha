@@ -180,13 +180,13 @@ export function AiReportModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-backdrop-fade"
+      className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-md flex items-start justify-center pt-8 sm:pt-12 p-3 sm:p-4 overflow-y-auto animate-backdrop-fade"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className="bg-white rounded-3xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl border border-slate-100 max-h-[90vh] flex flex-col animate-modal-pop"
+        className="bg-white rounded-3xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl border border-slate-100 max-h-[90vh] flex flex-col animate-modal-pop my-auto sm:my-0"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Users2, ArrowUpCircle, ArrowDownCircle, Trash2, UserPlus } from 'lucide-react';
+import { Users2, ArrowUpCircle, ArrowDownCircle, Trash2, UserPlus, X } from 'lucide-react';
 import { formatBDT } from '@/lib/utils';
 import { AddMemberModal } from '@/components/AddMemberModal';
 
@@ -39,6 +39,14 @@ export function FamilyMemberBreakdown({
 }: FamilyMemberBreakdownProps) {
   const [internalShowModal, setInternalShowModal] = useState(false);
 
+  // Inline Add Member State
+  const [showInlineAdd, setShowInlineAdd] = useState(false);
+  const [memberName, setMemberName] = useState('');
+  const [memberRole, setMemberRole] = useState<'MEMBER' | 'ADMIN'>('MEMBER');
+  const [memberPin, setMemberPin] = useState('1234');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const handleRemoveMember = async (userId: string, name: string) => {
     if (!confirm(`আপনি কি "${name}"-কে পরিবার থেকে মুছে ফেলতে চান?`)) return;
     try {
@@ -56,11 +64,48 @@ export function FamilyMemberBreakdown({
     }
   };
 
-  const handleTriggerAdd = () => {
-    if (onOpenAddMember) {
-      onOpenAddMember();
-    } else {
-      setInternalShowModal(true);
+  const handleToggleAdd = () => {
+    setShowInlineAdd(!showInlineAdd);
+    setError(null);
+  };
+
+  const handleAddMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!memberName.trim() || !memberPin || memberPin.trim().length < 4) {
+      setError('অনুগ্রহ করে সদস্যের নাম এবং কমপক্ষে ৪ সংখ্যার সিকিউরিটি পিন দিন');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/household/member', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          householdId,
+          name: memberName.trim(),
+          role: memberRole,
+          pin: memberPin.trim(),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setMemberName('');
+        setMemberPin('1234');
+        setShowInlineAdd(false);
+        onRefresh();
+      } else {
+        setError(data.error || 'সদস্য যুক্ত করতে সমস্যা হয়েছে');
+      }
+    } catch (err: any) {
+      console.error('Add member error:', err);
+      setError('সার্ভার কানেকশনে সমস্যা হয়েছে। আবার চেষ্টা করুন।');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -75,15 +120,118 @@ export function FamilyMemberBreakdown({
         </div>
         {isAdmin && (
           <button
-            onClick={handleTriggerAdd}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition active:scale-95"
+            type="button"
+            onClick={handleToggleAdd}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border transition cursor-pointer shadow-xs ${
+              showInlineAdd
+                ? 'bg-indigo-600 text-white border-indigo-600 ring-2 ring-indigo-400/20'
+                : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200'
+            }`}
             title="নতুন সদস্য যুক্ত করুন"
           >
-            <UserPlus className="w-3.5 h-3.5" />
-            <span>+ নতুন সদস্য</span>
+            <UserPlus className={`w-3.5 h-3.5 transition-transform ${showInlineAdd ? 'rotate-45' : ''}`} />
+            <span>{showInlineAdd ? 'ফর্ম বন্ধ করুন' : '+ নতুন সদস্য'}</span>
           </button>
         )}
       </div>
+
+      {/* Inline Add Member Form (No full-screen modal) */}
+      {showInlineAdd && (
+        <div className="mb-4 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-indigo-50/80 via-white to-purple-50/40 border border-indigo-200/90 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center justify-between pb-3 mb-3 border-b border-indigo-100/80">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+                <UserPlus className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="font-bold text-sm sm:text-base text-slate-800">
+                  পরিবারে নতুন সদস্য যুক্ত করুন
+                </h4>
+                <p className="text-[11px] text-slate-500">
+                  পরিবারের সদস্যের নাম এবং প্রোফাইল লগইন পিন নির্ধারণ করুন
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowInlineAdd(false)}
+              className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-indigo-100/60 rounded-lg transition cursor-pointer"
+              title="বন্ধ করুন"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <form onSubmit={handleAddMember} className="space-y-3.5">
+            {error && (
+              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+                {error}
+              </div>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  সদস্যের নাম *
+                </label>
+                <input
+                  type="text"
+                  placeholder="যেমন: বাবা, মা, ভাই, তানভীর..."
+                  value={memberName}
+                  onChange={(e) => setMemberName(e.target.value)}
+                  className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-slate-200 rounded-xl focus:outline-indigo-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  ভূমিকা (Role)
+                </label>
+                <select
+                  value={memberRole}
+                  onChange={(e) => setMemberRole(e.target.value as any)}
+                  className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-slate-200 rounded-xl focus:outline-indigo-500 font-medium"
+                >
+                  <option value="MEMBER">সাধারণ সদস্য (Member)</option>
+                  <option value="ADMIN">পরিবার প্রধান (Admin)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  লগইন পিন (PIN) *
+                </label>
+                <input
+                  type="password"
+                  maxLength={6}
+                  placeholder="৪ সংখ্যার পিন (ডিফল্ট: 1234)"
+                  value={memberPin}
+                  onChange={(e) => setMemberPin(e.target.value)}
+                  className="w-full text-xs sm:text-sm px-3 py-2 bg-white border border-slate-200 rounded-xl focus:outline-indigo-500 font-bold"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-indigo-100">
+              <button
+                type="button"
+                onClick={() => setShowInlineAdd(false)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition cursor-pointer"
+              >
+                বাতিল
+              </button>
+              <button
+                type="submit"
+                disabled={loading || !memberName.trim()}
+                className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-xl shadow-xs transition cursor-pointer"
+              >
+                {loading ? 'যুক্ত হচ্ছে...' : 'সদস্য যুক্ত করুন'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {members.map((m) => {
@@ -176,7 +324,7 @@ export function FamilyMemberBreakdown({
         })}
       </div>
 
-      {/* Internal Add Member Modal fallback */}
+      {/* Fallback Add Member Modal if opened from external trigger */}
       <AddMemberModal
         isOpen={internalShowModal}
         onClose={() => setInternalShowModal(false)}

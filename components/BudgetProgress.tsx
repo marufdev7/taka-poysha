@@ -145,11 +145,15 @@ export function BudgetProgress({
   };
 
   const handleOpenAddModal = () => {
-    setEditingBudget(null);
-    setSelectedCatId('');
-    setLimitAmount('');
-    setShowAddCategory(false);
-    setShowModal(true);
+    if (showModal && !editingBudget) {
+      setShowModal(false);
+    } else {
+      setEditingBudget(null);
+      setSelectedCatId('');
+      setLimitAmount('');
+      setShowAddCategory(false);
+      setShowModal(true);
+    }
   };
 
   const handleOpenEditModal = (b: Budget) => {
@@ -244,10 +248,14 @@ export function BudgetProgress({
         </div>
         <button
           onClick={handleOpenAddModal}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-600/20 transition self-start sm:self-auto cursor-pointer"
+          className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl transition self-start sm:self-auto cursor-pointer shadow-xs ${
+            showModal && !editingBudget
+              ? 'bg-indigo-700 text-white ring-2 ring-indigo-400/30'
+              : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20'
+          }`}
         >
-          <Plus className="w-4 h-4" />
-          <span>বাজেট সেট করুন</span>
+          <Plus className={`w-4 h-4 transition-transform ${showModal && !editingBudget ? 'rotate-45' : ''}`} />
+          <span>{showModal && !editingBudget ? 'ফর্ম বন্ধ করুন' : 'বাজেট সেট করুন'}</span>
         </button>
       </div>
 
@@ -498,6 +506,178 @@ export function BudgetProgress({
         </div>
       )}
 
+      {/* Inline Set / Edit Budget Form (No full-screen modal) */}
+      {showModal && (
+        <div className="mb-5 p-4 sm:p-5 rounded-2xl bg-indigo-50/60 border border-indigo-200/90 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center justify-between pb-3 border-b border-indigo-100 mb-3.5">
+            <div>
+              <h3 className="font-bold text-base text-slate-800">
+                {editingBudget ? 'বাজেট সীমা পরিবর্তন (এডিট)' : 'ক্যাটাগরি বাজেট নির্ধারণ'}
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                {editingBudget
+                  ? `"${editingBudget.category.name}" খাতের মাসিক বাজেট সীমা আপডেট করুন`
+                  : 'নতুন খাতের জন্য মাসিক বাজেট সীমা নির্ধারণ করুন'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setShowModal(false);
+                setEditingBudget(null);
+              }}
+              className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-indigo-100 transition cursor-pointer"
+              title="বন্ধ করুন"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <form onSubmit={handleSaveBudget} className="space-y-3.5">
+            {/* Category Field */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-slate-700">ব্যয়ের খাত *</label>
+                {!editingBudget && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAddCategory(!showAddCategory)}
+                    className="text-[11px] text-indigo-600 font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>নতুন খাত যোগ</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Inline Add Category Form */}
+              {!editingBudget && showAddCategory && (
+                <div className="p-2.5 bg-white border border-indigo-200/80 rounded-xl mb-2.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                  <label className="block text-[11px] font-semibold text-indigo-900 mb-1">
+                    নতুন ব্যয়ের খাতের নাম:
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="যেমন: ইন্টারনেট বিল, শপিং..."
+                      value={newCatName}
+                      onChange={(e) => setNewCatName(e.target.value)}
+                      className="flex-1 text-xs px-2.5 py-1.5 border border-indigo-200 rounded-lg bg-white focus:outline-indigo-500"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCreateCategory}
+                      disabled={addingCategory || !newCatName.trim()}
+                      className="px-3 py-1.5 text-xs font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 shrink-0 cursor-pointer"
+                    >
+                      {addingCategory ? 'যোগ হচ্ছে...' : 'যোগ'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <select
+                value={selectedCatId}
+                onChange={(e) => setSelectedCatId(e.target.value)}
+                className="w-full text-sm px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-indigo-500 bg-white"
+                required
+                disabled={Boolean(editingBudget)}
+              >
+                <option value="">খাত নির্বাচন করুন</option>
+                {expenseCategories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              {editingBudget && (
+                <p className="text-[10px] text-slate-400 mt-1">খাতের নাম অপরিবর্তনীয়, নিচের বক্স থেকে নতুন সীমা লিখুন</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                মাসিক বাজেট সীমা (টাকা) *
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-sm font-bold text-slate-400">৳</span>
+                <input
+                  type="number"
+                  placeholder="যেমন: ২০০০০"
+                  value={limitAmount}
+                  onChange={(e) => setLimitAmount(e.target.value)}
+                  className="w-full text-sm font-bold pl-8 pr-3 py-2 border border-slate-200 rounded-xl focus:outline-indigo-500 bg-white"
+                  required
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            {/* Live Warning if budget exceeds monthly income */}
+            {(() => {
+              const numLimit = parseFloat(limitAmount) || 0;
+              const currentCategoryBudget = editingBudget
+                ? editingBudget.limitAmount
+                : (budgets.find((b) => b.categoryId === selectedCatId)?.limitAmount || 0);
+              const projectedTotalBudget = totalMonthlyBudget - currentCategoryBudget + numLimit;
+              const isModalBudgetOverIncome =
+                effectiveMonthlyIncome > 0 &&
+                numLimit > 0 &&
+                projectedTotalBudget > effectiveMonthlyIncome;
+              const modalOverAmount = projectedTotalBudget - effectiveMonthlyIncome;
+
+              if (!isModalBudgetOverIncome) return null;
+
+              return (
+                <div className="p-3 bg-amber-50 border border-amber-300 rounded-2xl flex items-start gap-2.5 text-xs text-amber-950 animate-in fade-in duration-150">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <div className="font-bold text-amber-900 flex items-center gap-1">
+                      <span>সতর্কতা: মোট বাজেট মাসিক আয়কে ছাড়িয়ে যাবে!</span>
+                    </div>
+                    <p className="text-[11px] text-amber-800 mt-1 leading-relaxed">
+                      এই পরিমাণ নির্ধারণ করলে মোট বাজেট হবে <strong>{formatBDT(projectedTotalBudget, { useBengaliDigits })}</strong>, যা আপনার মাসিক আয় ({formatBDT(effectiveMonthlyIncome, { useBengaliDigits })})-এর চেয়ে <strong>{formatBDT(modalOverAmount, { useBengaliDigits })}</strong> বেশি।
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
+
+            <div className="flex items-center gap-2 pt-2">
+              {editingBudget && (
+                <button
+                  type="button"
+                  onClick={handleDeleteBudget}
+                  disabled={deleting}
+                  className="p-2.5 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 transition cursor-pointer shrink-0"
+                  title="এই বাজেট সীমা মুছে ফেলুন"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowModal(false);
+                  setEditingBudget(null);
+                }}
+                className="flex-1 py-2 text-xs font-semibold border border-slate-200 rounded-xl hover:bg-slate-50 transition text-slate-700 cursor-pointer"
+              >
+                বাতিল
+              </button>
+              <button
+                type="submit"
+                disabled={loading || deleting}
+                className="flex-1 py-2 text-xs font-semibold bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition disabled:opacity-50 shadow-md shadow-indigo-600/20 cursor-pointer"
+              >
+                {loading ? 'সংরক্ষণ হচ্ছে...' : editingBudget ? 'আপডেট করুন' : 'সংরক্ষণ করুন'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* Individual Category Budgets */}
       {budgets.length === 0 ? (
         <div className="text-center py-6 text-slate-400 text-xs bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
@@ -577,191 +757,6 @@ export function BudgetProgress({
               </div>
             );
           })}
-        </div>
-      )}
-
-      {/* Set / Edit Budget Modal */}
-      {showModal && (
-        <div
-          className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowModal(false);
-              setEditingBudget(null);
-            }
-          }}
-        >
-          <div
-            className="bg-white rounded-3xl max-w-sm w-full p-5 sm:p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3.5">
-              <div>
-                <h3 className="font-bold text-base text-slate-800">
-                  {editingBudget ? 'বাজেট সীমা পরিবর্তন (এডিট)' : 'ক্যাটাগরি বাজেট নির্ধারণ'}
-                </h3>
-                <p className="text-[11px] text-slate-400 mt-0.5">
-                  {editingBudget
-                    ? `"${editingBudget.category.name}" খাতের মাসিক বাজেট সীমা আপডেট করুন`
-                    : 'নতুন খাতের জন্য মাসিক বাজেট সীমা নির্ধারণ করুন'}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowModal(false);
-                  setEditingBudget(null);
-                }}
-                className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
-                title="বন্ধ করুন"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveBudget} className="space-y-3.5">
-              {/* Category Field */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-slate-700">ব্যয়ের খাত *</label>
-                  {!editingBudget && (
-                    <button
-                      type="button"
-                      onClick={() => setShowAddCategory(!showAddCategory)}
-                      className="text-[11px] text-indigo-600 font-bold hover:underline flex items-center gap-1 cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>নতুন খাত যোগ</span>
-                    </button>
-                  )}
-                </div>
-
-                {/* Inline Add Category Form */}
-                {!editingBudget && showAddCategory && (
-                  <div className="p-2.5 bg-indigo-50/70 border border-indigo-200/80 rounded-xl mb-2.5 animate-in fade-in slide-in-from-top-1 duration-150">
-                    <label className="block text-[11px] font-semibold text-indigo-900 mb-1">
-                      নতুন ব্যয়ের খাতের নাম:
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="যেমন: ইন্টারনেট বিল, শপিং..."
-                        value={newCatName}
-                        onChange={(e) => setNewCatName(e.target.value)}
-                        className="flex-1 text-xs px-2.5 py-1.5 border border-indigo-200 rounded-lg bg-white focus:outline-indigo-500"
-                        autoFocus
-                      />
-                      <button
-                        type="button"
-                        onClick={handleCreateCategory}
-                        disabled={addingCategory || !newCatName.trim()}
-                        className="px-3 py-1.5 text-xs font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 shrink-0 cursor-pointer"
-                      >
-                        {addingCategory ? 'যোগ হচ্ছে...' : 'যোগ'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <select
-                  value={selectedCatId}
-                  onChange={(e) => setSelectedCatId(e.target.value)}
-                  className="w-full text-sm px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-indigo-500 bg-white"
-                  required
-                  disabled={Boolean(editingBudget)}
-                >
-                  <option value="">খাত নির্বাচন করুন</option>
-                  {expenseCategories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-                {editingBudget && (
-                  <p className="text-[10px] text-slate-400 mt-1">খাতের নাম অপরিবর্তনীয়, নিচের বক্স থেকে নতুন সীমা লিখুন</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  মাসিক বাজেট সীমা (টাকা) *
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-sm font-bold text-slate-400">৳</span>
-                  <input
-                    type="number"
-                    placeholder="যেমন: ২০০০০"
-                    value={limitAmount}
-                    onChange={(e) => setLimitAmount(e.target.value)}
-                    className="w-full text-sm font-bold pl-8 pr-3 py-2 border border-slate-200 rounded-xl focus:outline-indigo-500"
-                    required
-                    autoFocus
-                  />
-                </div>
-              </div>
-
-              {/* Live Warning if budget exceeds monthly income */}
-              {(() => {
-                const numLimit = parseFloat(limitAmount) || 0;
-                const currentCategoryBudget = editingBudget
-                  ? editingBudget.limitAmount
-                  : (budgets.find((b) => b.categoryId === selectedCatId)?.limitAmount || 0);
-                const projectedTotalBudget = totalMonthlyBudget - currentCategoryBudget + numLimit;
-                const isModalBudgetOverIncome =
-                  effectiveMonthlyIncome > 0 &&
-                  numLimit > 0 &&
-                  projectedTotalBudget > effectiveMonthlyIncome;
-                const modalOverAmount = projectedTotalBudget - effectiveMonthlyIncome;
-
-                if (!isModalBudgetOverIncome) return null;
-
-                return (
-                  <div className="p-3 bg-amber-50 border border-amber-300 rounded-2xl flex items-start gap-2.5 text-xs text-amber-950 animate-in fade-in duration-150">
-                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <div className="font-bold text-amber-900 flex items-center gap-1">
-                        <span>সতর্কতা: মোট বাজেট মাসিক আয়কে ছাড়িয়ে যাবে!</span>
-                      </div>
-                      <p className="text-[11px] text-amber-800 mt-1 leading-relaxed">
-                        এই পরিমাণ নির্ধারণ করলে মোট বাজেট হবে <strong>{formatBDT(projectedTotalBudget, { useBengaliDigits })}</strong>, যা আপনার মাসিক আয় ({formatBDT(effectiveMonthlyIncome, { useBengaliDigits })})-এর চেয়ে <strong>{formatBDT(modalOverAmount, { useBengaliDigits })}</strong> বেশি।
-                      </p>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              <div className="flex items-center gap-2 pt-2">
-                {editingBudget && (
-                  <button
-                    type="button"
-                    onClick={handleDeleteBudget}
-                    disabled={deleting}
-                    className="p-2.5 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 transition cursor-pointer shrink-0"
-                    title="এই বাজেট সীমা মুছে ফেলুন"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowModal(false);
-                    setEditingBudget(null);
-                  }}
-                  className="flex-1 py-2 text-xs font-semibold border border-slate-200 rounded-xl hover:bg-slate-50 transition text-slate-700 cursor-pointer"
-                >
-                  বাতিল
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading || deleting}
-                  className="flex-1 py-2 text-xs font-semibold bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition disabled:opacity-50 shadow-md shadow-indigo-600/20 cursor-pointer"
-                >
-                  {loading ? 'সংরক্ষণ হচ্ছে...' : editingBudget ? 'আপডেট করুন' : 'সংরক্ষণ করুন'}
-                </button>
-              </div>
-            </form>
-          </div>
         </div>
       )}
     </div>

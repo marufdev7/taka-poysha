@@ -538,6 +538,8 @@ export default function HomePage() {
               useBengaliDigits={useBengaliDigits}
               onRefresh={() => fetchData(activeUserId)}
               onOpenAddModal={() => setIsAddDebtModalOpen(true)}
+              userId={currentUser.id}
+              householdId={household?.id || ''}
             />
 
             {/* 6. Monthly Category Budgets & Limits */}
@@ -606,6 +608,8 @@ export default function HomePage() {
               useBengaliDigits={useBengaliDigits}
               onRefresh={() => fetchData(activeUserId)}
               onOpenAddModal={() => setIsAddDebtModalOpen(true)}
+              userId={currentUser.id}
+              householdId={household?.id || ''}
             />
           </div>
         )}
