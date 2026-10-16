@@ -293,21 +293,22 @@ export function DebtsTracker({
               onOpenAddModal();
             }
           }}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer shadow-xs ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 active:scale-95 cursor-pointer shadow-xs ${
             showInlineAdd
               ? 'bg-amber-600 text-white ring-2 ring-amber-400/30'
               : 'bg-amber-500 hover:bg-amber-600 text-white'
           }`}
         >
-          <Plus className={`w-3.5 h-3.5 transition-transform ${showInlineAdd ? 'rotate-45' : ''}`} />
+          <Plus className={`w-3.5 h-3.5 transition-transform duration-300 ${showInlineAdd ? 'rotate-45' : ''}`} />
           <span>{showInlineAdd ? 'ফর্ম বন্ধ করুন' : 'নতুন ধার/পাওনা যোগ'}</span>
         </button>
       </div>
 
-      {/* Inline Add Debt Form (Collapsible, no full-screen modal) */}
-      {showInlineAdd && (
-        <div className="mb-5 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-amber-50/70 via-white to-amber-50/30 border border-amber-200/90 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="flex items-center justify-between pb-3 mb-3 border-b border-amber-100">
+      {/* Inline Add Debt Form (Collapsible accordion, smooth open & close) */}
+      <div className={`inline-collapse-wrapper ${showInlineAdd ? 'open mb-5' : ''}`}>
+        <div className="inline-collapse-content">
+          <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-amber-50/70 via-white to-amber-50/30 border border-amber-200/90 shadow-sm">
+            <div className="flex items-center justify-between pb-3 mb-3 border-b border-amber-100">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-xs">
                 <HandCoins className="w-4 h-4" />
@@ -463,7 +464,8 @@ export function DebtsTracker({
             </div>
           </form>
         </div>
-      )}
+      </div>
+    </div>
 
       {/* Summary Stat Bars */}
       <div className="grid grid-cols-2 gap-3 mb-4">
@@ -597,7 +599,7 @@ export function DebtsTracker({
                       type="button"
                       onClick={() => handleInitiateSettle(d)}
                       disabled={actionLoadingId === d.id}
-                      className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition cursor-pointer ${
+                      className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-all duration-200 active:scale-95 cursor-pointer ${
                         d.status === 'SETTLED'
                           ? 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
                           : isSettlingThis
@@ -624,10 +626,11 @@ export function DebtsTracker({
                   </div>
                 </div>
 
-                {/* Inline Debt Settlement Form (No full screen modal popup!) */}
-                {isSettlingThis && (
-                  <div className="mt-2.5 mx-2 p-3.5 sm:p-4 rounded-2xl bg-amber-50/70 border border-amber-200/90 shadow-2xs animate-in fade-in slide-in-from-top-1 duration-150 space-y-3">
-                    <div className="flex items-center justify-between pb-2 border-b border-amber-200/60">
+                {/* Inline Debt Settlement Form (Accordion motion, smooth open & close) */}
+                <div className={`inline-collapse-wrapper ${isSettlingThis ? 'open mt-2.5' : ''}`}>
+                  <div className="inline-collapse-content">
+                    <div className="mx-2 p-3.5 sm:p-4 rounded-2xl bg-amber-50/70 border border-amber-200/90 shadow-2xs space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-amber-200/60">
                       <div className="flex items-center gap-2">
                         <div
                           className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold ${
@@ -709,7 +712,8 @@ export function DebtsTracker({
                       </button>
                     </div>
                   </div>
-                )}
+                </div>
+              </div>
               </div>
             );
           })}

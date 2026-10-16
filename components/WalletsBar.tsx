@@ -269,33 +269,34 @@ export function WalletsBar({
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <button
             onClick={handleToggleTransfer}
-            className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition ${
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all duration-200 active:scale-95 cursor-pointer ${
               showTransferModal
                 ? 'border-indigo-400 bg-indigo-50 text-indigo-700 ring-2 ring-indigo-400/20 shadow-xs'
                 : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
             }`}
           >
-            <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-500" />
+            <ArrowRightLeft className={`w-3.5 h-3.5 text-indigo-500 transition-transform duration-300 ${showTransferModal ? 'rotate-180' : ''}`} />
             <span>টাকা ট্রান্সফার</span>
           </button>
           <button
             onClick={handleToggleAddWallet}
-            className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition ${
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all duration-200 active:scale-95 cursor-pointer ${
               showAddWalletModal
                 ? 'border-emerald-400 bg-emerald-100 text-emerald-800 ring-2 ring-emerald-400/20 shadow-xs'
                 : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200'
             }`}
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className={`w-3.5 h-3.5 transition-transform duration-300 ${showAddWalletModal ? 'rotate-45' : ''}`} />
             <span>নতুন ওয়ালেট</span>
           </button>
         </div>
       </div>
 
-      {/* Inline Transfer Form */}
-      {showTransferModal && (
-        <div className="mb-4 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-indigo-50/80 via-white to-purple-50/40 border border-indigo-200/90 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="flex items-center justify-between pb-3 mb-3 border-b border-indigo-100/80">
+      {/* Inline Transfer Form (Accordion motion, smooth open & close) */}
+      <div className={`inline-collapse-wrapper ${showTransferModal ? 'open mb-4' : ''}`}>
+        <div className="inline-collapse-content">
+          <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-indigo-50/80 via-white to-purple-50/40 border border-indigo-200/90 shadow-sm">
+            <div className="flex items-center justify-between pb-3 mb-3 border-b border-indigo-100/80">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
                 <ArrowRightLeft className="w-4 h-4" />
@@ -438,11 +439,13 @@ export function WalletsBar({
             </div>
           </form>
         </div>
-      )}
+      </div>
+    </div>
 
-      {/* Inline Add Wallet Form */}
-      {showAddWalletModal && (
-        <div className="mb-4 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/40 border border-emerald-200/90 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
+      {/* Inline Add Wallet Form (Accordion motion, smooth open & close) */}
+      <div className={`inline-collapse-wrapper ${showAddWalletModal ? 'open mb-4' : ''}`}>
+        <div className="inline-collapse-content">
+          <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/40 border border-emerald-200/90 shadow-sm">
           <div className="flex items-center justify-between pb-3 mb-3 border-b border-emerald-100/80">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
@@ -556,11 +559,13 @@ export function WalletsBar({
             </div>
           </form>
         </div>
-      )}
+      </div>
+    </div>
 
-      {/* Inline Edit Wallet Form (No modal) */}
-      {editingAccount && (
-        <div className="mb-4 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-amber-50/80 via-white to-amber-50/40 border border-amber-200/90 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
+      {/* Inline Edit Wallet Form (Accordion motion, smooth open & close) */}
+      <div className={`inline-collapse-wrapper ${editingAccount ? 'open mb-4' : ''}`}>
+        <div className="inline-collapse-content">
+          <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-amber-50/80 via-white to-amber-50/40 border border-amber-200/90 shadow-sm">
           <div className="flex items-center justify-between pb-3 mb-3 border-b border-amber-100/80">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-xs">
@@ -568,7 +573,7 @@ export function WalletsBar({
               </div>
               <div>
                 <h3 className="font-bold text-sm sm:text-base text-slate-800">
-                  ওয়ালেট তথ্য পরিবর্তন করুন ({editingAccount.name})
+                  ওয়ালেট তথ্য পরিবর্তন করুন {editingAccount ? `(${editingAccount.name})` : ''}
                 </h3>
                 <p className="text-[11px] text-slate-500">
                   ওয়ালেটের নাম বা বর্তমান ব্যালেন্স সমন্বয় করুন
@@ -627,7 +632,8 @@ export function WalletsBar({
             </div>
           </form>
         </div>
-      )}
+      </div>
+    </div>
 
       {/* Prominent Total Balance Hero Banner */}
       <div className="bg-gradient-to-r from-emerald-50 via-teal-50/60 to-slate-50 border border-emerald-200/80 rounded-2xl p-3.5 sm:p-4 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">

@@ -506,76 +506,79 @@ export function BudgetProgress({
         </div>
       )}
 
-      {/* Inline Set / Edit Budget Form (No full-screen modal) */}
-      {showModal && (
-        <div className="mb-5 p-4 sm:p-5 rounded-2xl bg-indigo-50/60 border border-indigo-200/90 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="flex items-center justify-between pb-3 border-b border-indigo-100 mb-3.5">
-            <div>
-              <h3 className="font-bold text-base text-slate-800">
-                {editingBudget ? 'বাজেট সীমা পরিবর্তন (এডিট)' : 'ক্যাটাগরি বাজেট নির্ধারণ'}
-              </h3>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                {editingBudget
-                  ? `"${editingBudget.category.name}" খাতের মাসিক বাজেট সীমা আপডেট করুন`
-                  : 'নতুন খাতের জন্য মাসিক বাজেট সীমা নির্ধারণ করুন'}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setShowModal(false);
-                setEditingBudget(null);
-              }}
-              className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-indigo-100 transition cursor-pointer"
-              title="বন্ধ করুন"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <form onSubmit={handleSaveBudget} className="space-y-3.5">
-            {/* Category Field */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-semibold text-slate-700">ব্যয়ের খাত *</label>
-                {!editingBudget && (
-                  <button
-                    type="button"
-                    onClick={() => setShowAddCategory(!showAddCategory)}
-                    className="text-[11px] text-indigo-600 font-bold hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>নতুন খাত যোগ</span>
-                  </button>
-                )}
+      {/* Inline Set / Edit Budget Form (Accordion motion, smooth open & close) */}
+      <div className={`inline-collapse-wrapper ${showModal ? 'open mb-5' : ''}`}>
+        <div className="inline-collapse-content">
+          <div className="p-4 sm:p-5 rounded-2xl bg-indigo-50/60 border border-indigo-200/90 shadow-sm">
+            <div className="flex items-center justify-between pb-3 border-b border-indigo-100 mb-3.5">
+              <div>
+                <h3 className="font-bold text-base text-slate-800">
+                  {editingBudget ? 'বাজেট সীমা পরিবর্তন (এডিট)' : 'ক্যাটাগরি বাজেট নির্ধারণ'}
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  {editingBudget
+                    ? `"${editingBudget.category.name}" খাতের মাসিক বাজেট সীমা আপডেট করুন`
+                    : 'নতুন খাতের জন্য মাসিক বাজেট সীমা নির্ধারণ করুন'}
+                </p>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowModal(false);
+                  setEditingBudget(null);
+                }}
+                className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-indigo-100 transition cursor-pointer"
+                title="বন্ধ করুন"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-              {/* Inline Add Category Form */}
-              {!editingBudget && showAddCategory && (
-                <div className="p-2.5 bg-white border border-indigo-200/80 rounded-xl mb-2.5 animate-in fade-in slide-in-from-top-1 duration-150">
-                  <label className="block text-[11px] font-semibold text-indigo-900 mb-1">
-                    নতুন ব্যয়ের খাতের নাম:
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="যেমন: ইন্টারনেট বিল, শপিং..."
-                      value={newCatName}
-                      onChange={(e) => setNewCatName(e.target.value)}
-                      className="flex-1 text-xs px-2.5 py-1.5 border border-indigo-200 rounded-lg bg-white focus:outline-indigo-500"
-                      autoFocus
-                    />
+            <form onSubmit={handleSaveBudget} className="space-y-3.5">
+              {/* Category Field */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-slate-700">ব্যয়ের খাত *</label>
+                  {!editingBudget && (
                     <button
                       type="button"
-                      onClick={handleCreateCategory}
-                      disabled={addingCategory || !newCatName.trim()}
-                      className="px-3 py-1.5 text-xs font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 shrink-0 cursor-pointer"
+                      onClick={() => setShowAddCategory(!showAddCategory)}
+                      className="text-[11px] text-indigo-600 font-bold hover:underline flex items-center gap-1 cursor-pointer transition-all duration-200 active:scale-95"
                     >
-                      {addingCategory ? 'যোগ হচ্ছে...' : 'যোগ'}
+                      <Plus className={`w-3.5 h-3.5 transition-transform duration-300 ${showAddCategory ? 'rotate-45' : ''}`} />
+                      <span>নতুন খাত যোগ</span>
                     </button>
+                  )}
+                </div>
+
+                {/* Inline Add Category Form (Accordion motion) */}
+                <div className={`inline-collapse-wrapper ${!editingBudget && showAddCategory ? 'open mb-2.5' : ''}`}>
+                  <div className="inline-collapse-content">
+                    <div className="p-2.5 bg-white border border-indigo-200/80 rounded-xl">
+                      <label className="block text-[11px] font-semibold text-indigo-900 mb-1">
+                        নতুন ব্যয়ের খাতের নাম:
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="যেমন: ইন্টারনেট বিল, শপিং..."
+                          value={newCatName}
+                          onChange={(e) => setNewCatName(e.target.value)}
+                          className="flex-1 text-xs px-2.5 py-1.5 border border-indigo-200 rounded-lg bg-white focus:outline-indigo-500"
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          onClick={handleCreateCategory}
+                          disabled={addingCategory || !newCatName.trim()}
+                          className="px-3 py-1.5 text-xs font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 shrink-0 cursor-pointer active:scale-95"
+                        >
+                          {addingCategory ? 'যোগ হচ্ছে...' : 'যোগ'}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              )}
 
               <select
                 value={selectedCatId}
@@ -676,7 +679,8 @@ export function BudgetProgress({
             </div>
           </form>
         </div>
-      )}
+      </div>
+    </div>
 
       {/* Individual Category Budgets */}
       {budgets.length === 0 ? (
