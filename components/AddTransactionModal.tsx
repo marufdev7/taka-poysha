@@ -85,20 +85,53 @@ export function AddTransactionModal({
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [newCatName, setNewCatName] = useState('');
 
+  // Quick Add Wallet State
+  const [showAddAccount, setShowAddAccount] = useState(false);
+  const [newAccName, setNewAccName] = useState('');
+  const [newAccType, setNewAccType] = useState('CASH');
+  const [newAccBalance, setNewAccBalance] = useState('');
+  const [creatingAccount, setCreatingAccount] = useState(false);
+
+  // Helper: sort accounts so CASH accounts always appear first at the top
+  const sortAccountsWithCashFirst = React.useCallback(
+    <T extends { name: string; type?: string }>(list: T[]): T[] => {
+      return [...list].sort((a, b) => {
+        const aIsCash =
+          a.type === 'CASH' ||
+          a.name.includes('ক্যাশ') ||
+          a.name.toLowerCase().includes('cash');
+        const bIsCash =
+          b.type === 'CASH' ||
+          b.name.includes('ক্যাশ') ||
+          b.name.toLowerCase().includes('cash');
+        if (aIsCash && !bIsCash) return -1;
+        if (!aIsCash && bIsCash) return 1;
+        return 0;
+      });
+    },
+    []
+  );
+
+  const sortedMyAccounts = React.useMemo(() => {
+    return sortAccountsWithCashFirst(accounts);
+  }, [accounts, sortAccountsWithCashFirst]);
+
   // Household accounts calculations for Transfers
   const allHouseholdAccounts = React.useMemo(() => {
-    return allAccounts && allAccounts.length > 0 ? allAccounts : accounts;
-  }, [allAccounts, accounts]);
+    return sortAccountsWithCashFirst(allAccounts && allAccounts.length > 0 ? allAccounts : accounts);
+  }, [allAccounts, accounts, sortAccountsWithCashFirst]);
 
   const myOtherAccounts = React.useMemo(() => {
-    return accounts.filter((a) => a.id !== accountId);
-  }, [accounts, accountId]);
+    return sortAccountsWithCashFirst(accounts.filter((a) => a.id !== accountId));
+  }, [accounts, accountId, sortAccountsWithCashFirst]);
 
   const familyMemberAccounts = React.useMemo(() => {
-    return allHouseholdAccounts.filter(
-      (a) => a.userId && a.userId !== userId && a.id !== accountId
+    return sortAccountsWithCashFirst(
+      allHouseholdAccounts.filter(
+        (a) => a.userId && a.userId !== userId && a.id !== accountId
+      )
     );
-  }, [allHouseholdAccounts, userId, accountId]);
+  }, [allHouseholdAccounts, userId, accountId, sortAccountsWithCashFirst]);
 
   const selectedToAccount = React.useMemo(() => {
     return allHouseholdAccounts.find((a) => a.id === toAccountId);
@@ -119,6 +152,39 @@ export function AddTransactionModal({
       'পারিবারিক সদস্য'
     );
   }, [selectedToAccount, users]);
+
+  const handleCreateAccount = async (targetField: 'FROM' | 'TO' = 'FROM') => {
+    if (!newAccName.trim()) return;
+    setCreatingAccount(true);
+    try {
+      const res = await fetch('/api/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          name: newAccName.trim(),
+          type: newAccType,
+          balance: parseFloat(newAccBalance) || 0,
+        }),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        setNewAccName('');
+        setNewAccBalance('');
+        setShowAddAccount(false);
+        if (targetField === 'TO') {
+          setToAccountId(created.id);
+        } else {
+          setAccountId(created.id);
+        }
+        onSuccess();
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setCreatingAccount(false);
+    }
+  };
 
   // Handle open / edit pre-filling
   React.useEffect(() => {
@@ -141,10 +207,10 @@ export function AddTransactionModal({
       setType('EXPENSE');
       setAmount('');
       setCategoryId('');
-      const initialFrom = accounts[0]?.id || '';
+      const initialFrom = sortedMyAccounts[0]?.id || accounts[0]?.id || '';
       setAccountId(initialFrom);
       const defaultDest =
-        accounts.find((a) => a.id !== initialFrom)?.id ||
+        sortedMyAccounts.find((a) => a.id !== initialFrom)?.id ||
         allHouseholdAccounts.find((a) => a.id !== initialFrom)?.id ||
         '';
       setToAccountId(defaultDest);
@@ -156,7 +222,7 @@ export function AddTransactionModal({
       setNote('');
       setVisibility('FAMILY');
     }
-  }, [isOpen, transactionToEdit, accounts, allHouseholdAccounts, defaultDate]);
+  }, [isOpen, transactionToEdit, sortedMyAccounts, allHouseholdAccounts, defaultDate]);
 
   // Handle Escape key dismiss
   React.useEffect(() => {
@@ -441,9 +507,84 @@ export function AddTransactionModal({
 
           {/* Account/Wallet */}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">
-              {type === 'TRANSFER' ? 'টাকা পাঠানোর ওয়ালেট (প্রেরক) *' : 'ওয়ালেট / একাউন্ট *'}
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-semibold text-slate-600">
+                {type === 'TRANSFER' ? 'টাকা পাঠানোর ওয়ালেট (প্রেরক) *' : 'ওয়ালেট / একাউন্ট *'}
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowAddAccount(!showAddAccount)}
+                className="text-[11px] text-emerald-600 font-semibold hover:underline flex items-center gap-0.5"
+              >
+                <Plus className="w-3 h-3" />
+                নতুন ওয়ালেট (ক্যাশ / ব্যাংক / বিকাশ)
+              </button>
+            </div>
+
+            {/* Quick Add Wallet inline form */}
+            {showAddAccount && (
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl mb-3 space-y-2.5">
+                <div className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                  <span>নতুন ওয়ালেট যোগ করুন</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddAccount(false)}
+                    className="text-slate-400 hover:text-slate-600 text-xs"
+                  >
+                    বন্ধ
+                  </button>
+                </div>
+
+                <div className="flex gap-1.5 flex-wrap">
+                  {['ক্যাশ (Cash)', 'বিকাশ (bKash)', 'নগদ (Nagad)', 'রকেট (Rocket)', 'ব্যাংক একাউন্ট'].map((preset) => (
+                    <button
+                      type="button"
+                      key={preset}
+                      onClick={() => {
+                        setNewAccName(preset);
+                        if (preset.includes('ক্যাশ')) setNewAccType('CASH');
+                        else if (preset.includes('বিকাশ')) setNewAccType('BKASH');
+                        else if (preset.includes('নগদ')) setNewAccType('NAGAD');
+                        else if (preset.includes('রকেট')) setNewAccType('ROCKET');
+                        else setNewAccType('BANK');
+                      }}
+                      className="px-2 py-0.5 text-[10px] rounded-md bg-white border border-slate-200 hover:border-emerald-500 hover:text-emerald-700 font-medium transition cursor-pointer"
+                    >
+                      +{preset}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    placeholder="ওয়ালেটের নাম..."
+                    value={newAccName}
+                    onChange={(e) => setNewAccName(e.target.value)}
+                    className="text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white"
+                  />
+                  <input
+                    type="number"
+                    placeholder="বর্তমান ব্যালেন্স (৳)..."
+                    value={newAccBalance}
+                    onChange={(e) => setNewAccBalance(e.target.value)}
+                    className="text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleCreateAccount('FROM')}
+                    disabled={creatingAccount || !newAccName.trim()}
+                    className="px-3 py-1.5 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition disabled:opacity-50 cursor-pointer"
+                  >
+                    {creatingAccount ? 'যোগ হচ্ছে...' : 'যোগ করুন'}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <select
               value={accountId}
               onChange={(e) => {
@@ -451,7 +592,7 @@ export function AddTransactionModal({
                 setAccountId(newAccountId);
                 if (toAccountId === newAccountId) {
                   const fallback =
-                    accounts.find((a) => a.id !== newAccountId)?.id ||
+                    sortedMyAccounts.find((a) => a.id !== newAccountId)?.id ||
                     allHouseholdAccounts.find((a) => a.id !== newAccountId)?.id ||
                     '';
                   setToAccountId(fallback);
@@ -460,7 +601,7 @@ export function AddTransactionModal({
               className="w-full text-sm px-3 py-2 border border-slate-200 rounded-xl focus:outline-emerald-500 bg-white"
               required
             >
-              {accounts.map((a) => (
+              {sortedMyAccounts.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name} (৳ {a.balance})
                 </option>
@@ -472,9 +613,21 @@ export function AddTransactionModal({
           {type === 'TRANSFER' && (
             <div className="space-y-2">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  টাকা কোন ওয়ালেটে জমা হবে? (প্রাপক) *
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-600">
+                    টাকা কোন ওয়ালেটে জমা হবে? (প্রাপক) *
+                  </label>
+                  {!showAddAccount && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAddAccount(true)}
+                      className="text-[11px] text-indigo-600 font-semibold hover:underline flex items-center gap-0.5"
+                    >
+                      <Plus className="w-3 h-3" />
+                      নতুন ওয়ালেট
+                    </button>
+                  )}
+                </div>
                 <select
                   value={toAccountId}
                   onChange={(e) => setToAccountId(e.target.value)}

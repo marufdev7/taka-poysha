@@ -83,7 +83,7 @@ export async function POST(request: Request) {
       Array.isArray(wallets) && wallets.length > 0
         ? wallets
         : [
-            { name: 'ক্যাশ টাকা', type: 'CASH', balance: 0 },
+            { name: 'ক্যাশ (Cash)', type: 'CASH', balance: 0 },
             { name: 'bKash', type: 'BKASH', balance: 0 },
             { name: 'ব্যাংক একাউন্ট', type: 'BANK', balance: 0 },
           ];

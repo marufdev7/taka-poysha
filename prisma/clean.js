@@ -19,7 +19,7 @@ async function resetClean() {
     // Create basic empty wallets for the user with 0 balance
     await prisma.account.createMany({
       data: [
-        { userId: user.id, name: 'ক্যাশ টাকা', type: 'CASH', balance: 0 },
+        { userId: user.id, name: 'ক্যাশ (Cash)', type: 'CASH', balance: 0 },
         { userId: user.id, name: 'bKash', type: 'BKASH', balance: 0 },
         { userId: user.id, name: 'ব্যাংক একাউন্ট', type: 'BANK', balance: 0 },
       ],

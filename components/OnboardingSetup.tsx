@@ -11,7 +11,7 @@ export function OnboardingSetup({ onSuccess }: OnboardingSetupProps) {
   const [name, setName] = useState('');
   const [householdName, setHouseholdName] = useState('');
   const [wallets, setWallets] = useState([
-    { name: 'ক্যাশ টাকা', type: 'CASH', balance: 0, checked: true },
+    { name: 'ক্যাশ (Cash)', type: 'CASH', balance: 0, checked: true },
     { name: 'bKash', type: 'BKASH', balance: 0, checked: true },
     { name: 'ব্যাংক একাউন্ট', type: 'BANK', balance: 0, checked: true },
     { name: 'নগদ (Nagad)', type: 'NAGAD', balance: 0, checked: false },
