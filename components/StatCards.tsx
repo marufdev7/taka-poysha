@@ -176,7 +176,9 @@ export function StatCards({
         <div className="bg-white p-3 sm:p-5 rounded-2xl border border-slate-200/80 shadow-sm relative overflow-hidden group hover:border-blue-300 transition-all flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[11px] sm:text-sm font-medium text-slate-500 truncate pr-1">মাসিক সঞ্চয়</span>
+              <span className="text-[11px] sm:text-sm font-medium text-slate-500 truncate pr-1" title="চলতি মাসের মোট আয় থেকে মোট ব্যয়ের উদ্বৃত্ত">
+                মাসিক সঞ্চয় (উদ্বৃত্ত)
+              </span>
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
                 <PiggyBank className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
@@ -190,7 +192,7 @@ export function StatCards({
             </div>
           </div>
           <div className="mt-2 text-[10px] sm:text-xs text-slate-500 leading-tight">
-            {netSavings >= 0 ? 'উদ্বৃত্ত তহবিল 🎉' : 'বাজেট ঘাটতি ⚠️'}
+            {netSavings >= 0 ? 'চলতি মাসের উদ্বৃত্ত (আয় - ব্যয়) 🎉' : 'বাজেট ঘাটতি ⚠️'}
           </div>
         </div>
 
