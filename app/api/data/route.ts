@@ -126,6 +126,9 @@ export async function GET(request: Request) {
           ...(household ? [{ householdId: household.id }] : []),
         ],
       },
+      include: {
+        account: true,
+      },
       orderBy: { dueDate: 'asc' },
     });
 

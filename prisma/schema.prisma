@@ -58,6 +58,7 @@ model Account {
   user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions   Transaction[]
   transfersTo    Transaction[] @relation("TransferToAccount")
+  debts          Debt[]
 }
 
 model Category {
@@ -125,6 +126,7 @@ model Debt {
   id          String    @id @default(cuid())
   userId      String
   householdId String?
+  accountId   String?   // কোন ওয়ালেট থেকে ধার দেওয়া হয়েছে বা ধার নেওয়া হয়েছে
   personName  String    // ব্যক্তির নাম (যেমন: "আসিফ", "সুমন", "বাড়িওয়ালা")
   type        String    // "RECEIVABLE" (আমি পাব) | "PAYABLE" (আমাকে দিতে হবে)
   amount      Float     // টাকার পরিমাণ
@@ -135,4 +137,5 @@ model Debt {
   updatedAt   DateTime  @updatedAt
 
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account     Account?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
 }

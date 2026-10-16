@@ -686,6 +686,8 @@ export default function HomePage() {
         onSuccess={() => fetchData(activeUserId)}
         userId={currentUser.id}
         householdId={household?.id || ''}
+        accounts={accounts?.filter((a: any) => a.userId === currentUser.id)}
+        useBengaliDigits={useBengaliDigits}
       />
 
       {/* AI Report Modal */}
