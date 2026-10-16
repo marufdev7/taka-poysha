@@ -504,6 +504,7 @@ export default function HomePage() {
               onRefresh={() => fetchData(activeUserId)}
               currentUser={currentUser}
               isFamilyView={isFamilyView}
+              householdId={household?.id || ''}
             />
 
             {/* 3. Daily Spending History & Income/Business Profit Breakdown */}

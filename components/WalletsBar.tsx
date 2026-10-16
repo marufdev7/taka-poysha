@@ -10,6 +10,7 @@ import {
   Banknote,
   Trash2,
   Pencil,
+  X,
 } from 'lucide-react';
 import { formatBDT } from '@/lib/utils';
 
@@ -27,6 +28,7 @@ interface WalletsBarProps {
   onRefresh: () => void;
   currentUser: { id: string; name: string };
   isFamilyView: boolean;
+  householdId?: string;
 }
 
 export function WalletsBar({
@@ -35,6 +37,7 @@ export function WalletsBar({
   onRefresh,
   currentUser,
   isFamilyView,
+  householdId,
 }: WalletsBarProps) {
   const [showAddWalletModal, setShowAddWalletModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -54,6 +57,54 @@ export function WalletsBar({
   const [transferAmount, setTransferAmount] = useState('');
   const [transferNote, setTransferNote] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Cash first sorting helper
+  const sortAccountsWithCashFirst = React.useCallback(
+    <T extends { name: string; type?: string }>(list: T[]): T[] => {
+      return [...list].sort((a, b) => {
+        const aIsCash =
+          a.type === 'CASH' ||
+          a.name.includes('ক্যাশ') ||
+          a.name.toLowerCase().includes('cash');
+        const bIsCash =
+          b.type === 'CASH' ||
+          b.name.includes('ক্যাশ') ||
+          b.name.toLowerCase().includes('cash');
+        if (aIsCash && !bIsCash) return -1;
+        if (!aIsCash && bIsCash) return 1;
+        return 0;
+      });
+    },
+    []
+  );
+
+  const sortedAccounts = React.useMemo(() => {
+    return sortAccountsWithCashFirst(accounts);
+  }, [accounts, sortAccountsWithCashFirst]);
+
+  const handleToggleTransfer = () => {
+    if (!showTransferModal) {
+      setShowAddWalletModal(false);
+      setShowTransferModal(true);
+      const myAccounts = sortedAccounts.filter((a) => a.user.id === currentUser.id);
+      const defaultFrom = myAccounts[0]?.id || sortedAccounts[0]?.id || '';
+      const defaultTo =
+        sortedAccounts.find((a) => a.id !== defaultFrom)?.id || '';
+      if (!fromAccountId) setFromAccountId(defaultFrom);
+      if (!toAccountId) setToAccountId(defaultTo);
+    } else {
+      setShowTransferModal(false);
+    }
+  };
+
+  const handleToggleAddWallet = () => {
+    if (!showAddWalletModal) {
+      setShowTransferModal(false);
+      setShowAddWalletModal(true);
+    } else {
+      setShowAddWalletModal(false);
+    }
+  };
 
   const handleDeleteAccount = async (id: string, name: string) => {
     if (!confirm(`আপনি কি নিশ্চিত যে "${name}" ওয়ালেটটি মুছে ফেলতে চান?`)) return;
@@ -160,7 +211,7 @@ export function WalletsBar({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: currentUser.id,
-          householdId: accounts[0]?.id ? 'default' : '',
+          householdId: householdId || undefined,
           accountId: fromAccountId,
           toAccountId,
           type: 'TRANSFER',
@@ -215,21 +266,295 @@ export function WalletsBar({
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <button
-            onClick={() => setShowTransferModal(true)}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition"
+            onClick={handleToggleTransfer}
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition ${
+              showTransferModal
+                ? 'border-indigo-400 bg-indigo-50 text-indigo-700 ring-2 ring-indigo-400/20 shadow-xs'
+                : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
+            }`}
           >
             <ArrowRightLeft className="w-3.5 h-3.5 text-indigo-500" />
             <span>টাকা ট্রান্সফার</span>
           </button>
           <button
-            onClick={() => setShowAddWalletModal(true)}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition"
+            onClick={handleToggleAddWallet}
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition ${
+              showAddWalletModal
+                ? 'border-emerald-400 bg-emerald-100 text-emerald-800 ring-2 ring-emerald-400/20 shadow-xs'
+                : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200'
+            }`}
           >
             <Plus className="w-3.5 h-3.5" />
             <span>নতুন ওয়ালেট</span>
           </button>
         </div>
       </div>
+
+      {/* Inline Transfer Form */}
+      {showTransferModal && (
+        <div className="mb-4 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-indigo-50/80 via-white to-purple-50/40 border border-indigo-200/90 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center justify-between pb-3 mb-3 border-b border-indigo-100/80">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+                <ArrowRightLeft className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm sm:text-base text-slate-800">
+                  ওয়ালেট টু ওয়ালেট ফান্ড স্থানান্তর
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  এক ওয়ালেট (যেমন: ক্যাশ বা ব্যাংক) থেকে অন্য ওয়ালেটে টাকা সরান
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowTransferModal(false)}
+              className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition"
+              title="বন্ধ করুন"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <form onSubmit={handleTransfer} className="space-y-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                  কোন একাউন্ট থেকে? (টাকা প্রেরক)
+                </label>
+                <select
+                  value={fromAccountId}
+                  onChange={(e) => {
+                    const newFrom = e.target.value;
+                    setFromAccountId(newFrom);
+                    if (newFrom === toAccountId) {
+                      const next = sortedAccounts.find((a) => a.id !== newFrom);
+                      if (next) setToAccountId(next.id);
+                    }
+                  }}
+                  className="w-full text-xs sm:text-sm px-3 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition shadow-2xs font-medium text-slate-800"
+                  required
+                >
+                  <option value="">ওয়ালেট নির্বাচন করুন</option>
+                  {sortedAccounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} — ব্যালেন্স: {formatBDT(a.balance, { useBengaliDigits })} {isFamilyView && a.user ? `(${a.user.name})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  কোন একাউন্টে জমা হবে? (টাকা প্রাপক)
+                </label>
+                <select
+                  value={toAccountId}
+                  onChange={(e) => setToAccountId(e.target.value)}
+                  className="w-full text-xs sm:text-sm px-3 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition shadow-2xs font-medium text-slate-800"
+                  required
+                >
+                  <option value="">ওয়ালেট নির্বাচন করুন</option>
+                  {sortedAccounts
+                    .filter((a) => a.id !== fromAccountId)
+                    .map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name} — ব্যালেন্স: {formatBDT(a.balance, { useBengaliDigits })} {isFamilyView && a.user ? `(${a.user.name})` : ''}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  টাকার পরিমাণ (৳)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">৳</span>
+                  <input
+                    type="number"
+                    placeholder="যেমন: ৫০০ বা ১০০০"
+                    value={transferAmount}
+                    onChange={(e) => setTransferAmount(e.target.value)}
+                    className="w-full text-xs sm:text-sm pl-7 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition shadow-2xs font-bold text-slate-900"
+                    required
+                    min="1"
+                    step="any"
+                  />
+                </div>
+                {/* Quick Amount Suggestion Pills */}
+                <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                  <span className="text-[10px] text-slate-400 font-medium">কুইক সিলেক্ট:</span>
+                  {[100, 500, 1000, 2000, 5000].map((amt) => (
+                    <button
+                      key={amt}
+                      type="button"
+                      onClick={() => setTransferAmount(amt.toString())}
+                      className="px-2 py-0.5 text-[11px] font-semibold bg-white hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 border border-slate-200 hover:border-indigo-200 rounded-md transition shadow-2xs"
+                    >
+                      +৳{formatBDT(amt, { useBengaliDigits })}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  নোট বা বিবরণ (ঐচ্ছিক)
+                </label>
+                <input
+                  type="text"
+                  placeholder="যেমন: এটিএম থেকে ক্যাশ উত্তোলন / বিকাশ ক্যাশআউট"
+                  value={transferNote}
+                  onChange={(e) => setTransferNote(e.target.value)}
+                  className="w-full text-xs sm:text-sm px-3 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition shadow-2xs text-slate-800"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-indigo-100/80">
+              <button
+                type="button"
+                onClick={() => setShowTransferModal(false)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl transition"
+              >
+                বাতিল
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-xl shadow-sm shadow-indigo-600/20 transition flex items-center gap-1.5"
+              >
+                <ArrowRightLeft className="w-3.5 h-3.5" />
+                <span>{loading ? 'স্থানান্তর হচ্ছে...' : 'স্থানান্তর সম্পন্ন করুন'}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Inline Add Wallet Form */}
+      {showAddWalletModal && (
+        <div className="mb-4 p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/40 border border-emerald-200/90 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center justify-between pb-3 mb-3 border-b border-emerald-100/80">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                <Plus className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm sm:text-base text-slate-800">
+                  নতুন ওয়ালেট বা একাউন্ট যোগ করুন
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  বিকাশ, নগদ, রকেট, ব্যাংক একাউন্ট বা ক্যাশ যুক্ত করুন
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowAddWalletModal(false)}
+              className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition"
+              title="বন্ধ করুন"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Quick Presets */}
+          <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+            <span className="text-[10px] text-slate-400 font-medium">কুইক প্রিসেট:</span>
+            {[
+              { name: 'ক্যাশ (Cash)', type: 'CASH' },
+              { name: 'বিকাশ (bKash)', type: 'BKASH' },
+              { name: 'নগদ (Nagad)', type: 'NAGAD' },
+              { name: 'রকেট (Rocket)', type: 'ROCKET' },
+              { name: 'ব্যাংক একাউন্ট', type: 'BANK' },
+            ].map((preset) => (
+              <button
+                key={preset.name}
+                type="button"
+                onClick={() => {
+                  setWalletName(preset.name);
+                  setWalletType(preset.type);
+                }}
+                className="px-2 py-0.5 text-[11px] font-semibold bg-white hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-slate-200 hover:border-emerald-200 rounded-md transition shadow-2xs"
+              >
+                +{preset.name}
+              </button>
+            ))}
+          </div>
+
+          <form onSubmit={handleCreateWallet} className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  ওয়ালেটের নাম
+                </label>
+                <input
+                  type="text"
+                  placeholder="যেমন: ক্যাশ, বিকাশ, সিটি ব্যাংক"
+                  value={walletName}
+                  onChange={(e) => setWalletName(e.target.value)}
+                  className="w-full text-xs sm:text-sm px-3 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition shadow-2xs font-medium text-slate-800"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  ওয়ালেট টাইপ
+                </label>
+                <select
+                  value={walletType}
+                  onChange={(e) => setWalletType(e.target.value)}
+                  className="w-full text-xs sm:text-sm px-3 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition shadow-2xs font-medium text-slate-800"
+                >
+                  <option value="CASH">ক্যাশ (Cash)</option>
+                  <option value="BKASH">বিকাশ (bKash)</option>
+                  <option value="NAGAD">নগদ (Nagad)</option>
+                  <option value="ROCKET">রকেট (Rocket)</option>
+                  <option value="BANK">ব্যাংক একাউন্ট (Bank / DBBL)</option>
+                  <option value="OTHER">অন্যান্য</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  বর্তমান ব্যালেন্স (ঐচ্ছিক)
+                </label>
+                <input
+                  type="number"
+                  placeholder="০.০০"
+                  value={initialBalance}
+                  onChange={(e) => setInitialBalance(e.target.value)}
+                  className="w-full text-xs sm:text-sm px-3 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition shadow-2xs font-bold text-slate-800"
+                  step="any"
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-emerald-100/80">
+              <button
+                type="button"
+                onClick={() => setShowAddWalletModal(false)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl transition"
+              >
+                বাতিল
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-xl shadow-sm shadow-emerald-600/20 transition flex items-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{loading ? 'তৈরি হচ্ছে...' : 'ওয়ালেট সংরক্ষণ করুন'}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Prominent Total Balance Hero Banner */}
       <div className="bg-gradient-to-r from-emerald-50 via-teal-50/60 to-slate-50 border border-emerald-200/80 rounded-2xl p-3.5 sm:p-4 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
@@ -302,11 +627,26 @@ export function WalletsBar({
         ))}
       </div>
 
-      {/* Edit Wallet Modal */}
+      {/* Edit Wallet Modal (Top-aligned, click outside or X to close) */}
       {editingAccount && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setEditingAccount(null);
+          }}
+          className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-start justify-center pt-16 sm:pt-24 p-4 animate-in fade-in duration-150"
+        >
           <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
-            <h3 className="font-bold text-base text-slate-800 mb-3">ওয়ালেট তথ্য পরিবর্তন করুন</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-base text-slate-800">ওয়ালেট তথ্য পরিবর্তন করুন</h3>
+              <button
+                type="button"
+                onClick={() => setEditingAccount(null)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-md transition"
+                title="বন্ধ করুন"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
             <form onSubmit={handleUpdateAccount} className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">ওয়ালেটের নাম</label>
@@ -326,6 +666,7 @@ export function WalletsBar({
                   onChange={(e) => setEditBalance(e.target.value)}
                   className="w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-emerald-500"
                   required
+                  step="any"
                 />
               </div>
               <div className="flex gap-2 pt-2">
@@ -342,156 +683,6 @@ export function WalletsBar({
                   className="flex-1 py-2 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
                 >
                   {loading ? 'সংরক্ষণ হচ্ছে...' : 'আপডেট করুন'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Add Wallet Modal */}
-      {showAddWalletModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
-            <h3 className="font-bold text-base text-slate-800 mb-3">নতুন ওয়ালেট তৈরি করুন</h3>
-            <form onSubmit={handleCreateWallet} className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">ওয়ালেটের নাম</label>
-                <input
-                  type="text"
-                  placeholder="যেমন: সিটি ব্যাংক, নগদ, পকেট ক্যাশ"
-                  value={walletName}
-                  onChange={(e) => setWalletName(e.target.value)}
-                  className="w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-emerald-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">ওয়ালেট টাইপ</label>
-                <select
-                  value={walletType}
-                  onChange={(e) => setWalletType(e.target.value)}
-                  className="w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-emerald-500"
-                >
-                  <option value="CASH">ক্যাশ (Cash)</option>
-                  <option value="BKASH">বিকাশ (bKash)</option>
-                  <option value="NAGAD">নগদ (Nagad)</option>
-                  <option value="ROCKET">রকেট (Rocket)</option>
-                  <option value="BANK">ব্যাংক একাউন্ট (Bank / DBBL)</option>
-                  <option value="OTHER">অন্যান্য</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">
-                  বর্তমান ব্যালেন্স (ঐচ্ছিক)
-                </label>
-                <input
-                  type="number"
-                  placeholder="০.০০"
-                  value={initialBalance}
-                  onChange={(e) => setInitialBalance(e.target.value)}
-                  className="w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-emerald-500"
-                />
-              </div>
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAddWalletModal(false)}
-                  className="flex-1 py-2 text-xs font-medium border border-slate-200 rounded-lg hover:bg-slate-50"
-                >
-                  বাতিল
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 py-2 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
-                >
-                  {loading ? 'তৈরি হচ্ছে...' : 'সংরক্ষণ করুন'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Transfer Modal */}
-      {showTransferModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
-            <h3 className="font-bold text-base text-slate-800 mb-3 flex items-center gap-2">
-              <ArrowRightLeft className="w-4 h-4 text-indigo-600" />
-              <span>ওয়ালেট থেকে ওয়ালেটে ফান্ড স্থানান্তর</span>
-            </h3>
-            <form onSubmit={handleTransfer} className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">কোন একাউন্ট থেকে?</label>
-                <select
-                  value={fromAccountId}
-                  onChange={(e) => setFromAccountId(e.target.value)}
-                  className="w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-indigo-500"
-                  required
-                >
-                  <option value="">নির্বাচন করুন</option>
-                  {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} ({formatBDT(a.balance, { useBengaliDigits })})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">কোন একাউন্টে জমা হবে?</label>
-                <select
-                  value={toAccountId}
-                  onChange={(e) => setToAccountId(e.target.value)}
-                  className="w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-indigo-500"
-                  required
-                >
-                  <option value="">নির্বাচন করুন</option>
-                  {accounts
-                    .filter((a) => a.id !== fromAccountId)
-                    .map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name} ({formatBDT(a.balance, { useBengaliDigits })})
-                      </option>
-                    ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">টাকার পরিমাণ (৳)</label>
-                <input
-                  type="number"
-                  placeholder="যেমন: ৫০০০"
-                  value={transferAmount}
-                  onChange={(e) => setTransferAmount(e.target.value)}
-                  className="w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-indigo-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">নোট (ঐচ্ছিক)</label>
-                <input
-                  type="text"
-                  placeholder="যেমন: এটিএম থেকে ক্যাশ উত্তোলন"
-                  value={transferNote}
-                  onChange={(e) => setTransferNote(e.target.value)}
-                  className="w-full text-sm px-3 py-2 border border-slate-200 rounded-lg focus:outline-indigo-500"
-                />
-              </div>
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowTransferModal(false)}
-                  className="flex-1 py-2 text-xs font-medium border border-slate-200 rounded-lg hover:bg-slate-50"
-                >
-                  বাতিল
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 py-2 text-xs font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {loading ? 'স্থানান্তর হচ্ছে...' : 'স্থানান্তর করুন'}
                 </button>
               </div>
             </form>
