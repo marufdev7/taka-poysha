@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { StatCards } from '@/components/StatCards';
 import { WalletsBar } from '@/components/WalletsBar';
@@ -54,9 +54,12 @@ export default function HomePage() {
   // Auto Expense Popup State (twice a day)
   const [autoPopupSlot, setAutoPopupSlot] = useState<number | null>(null);
 
-  // Check saved session on mount
+  const initialScrollDone = useRef(false);
+
+  // Check saved session on mount and ensure scroll starts at top
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      window.scrollTo(0, 0);
       const savedId = localStorage.getItem('auth_user_id');
       if (savedId) {
         setAuthUserId(savedId);
@@ -65,6 +68,14 @@ export default function HomePage() {
       setAuthChecked(true);
     }
   }, []);
+
+  // Guarantee page stays at top once initial data loading finishes
+  useEffect(() => {
+    if (!loading && !initialScrollDone.current && typeof window !== 'undefined') {
+      initialScrollDone.current = true;
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+    }
+  }, [loading]);
 
   const fetchData = useCallback(async (userId?: string) => {
     const targetUserId =

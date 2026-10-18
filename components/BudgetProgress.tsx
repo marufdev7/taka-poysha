@@ -565,7 +565,6 @@ export function BudgetProgress({
                           value={newCatName}
                           onChange={(e) => setNewCatName(e.target.value)}
                           className="flex-1 text-xs px-2.5 py-1.5 border border-indigo-200 rounded-lg bg-white focus:outline-indigo-500"
-                          autoFocus
                         />
                         <button
                           type="button"
@@ -612,7 +611,6 @@ export function BudgetProgress({
                   onChange={(e) => setLimitAmount(e.target.value)}
                   className="w-full text-sm font-bold pl-8 pr-3 py-2 border border-slate-200 rounded-xl focus:outline-indigo-500 bg-white"
                   required
-                  autoFocus
                 />
               </div>
             </div>
