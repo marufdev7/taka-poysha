@@ -494,7 +494,7 @@ export default function HomePage() {
 
         {/* TAB 1: OVERVIEW DASHBOARD */}
         {activeTab === 'dashboard' && (
-          <div className="space-y-6 animate-tab-enter">
+          <div key="dashboard-view" className="space-y-6 animate-tab-enter">
             {/* 1. Core Financial Stat Cards (Today's Expense & Monthly Overview) */}
             <StatCards
               todayExpense={todayExpense}
@@ -582,7 +582,7 @@ export default function HomePage() {
 
         {/* TAB 2: FINANCIAL CALENDAR (DEDICATED FULL VIEW) */}
         {activeTab === 'calendar' && (
-          <div className="animate-tab-enter">
+          <div key="calendar-view" className="animate-tab-enter">
             <FinancialCalendar
               transactions={visibleTransactions}
               useBengaliDigits={useBengaliDigits}
@@ -597,7 +597,7 @@ export default function HomePage() {
 
         {/* TAB 3: TRANSACTIONS HISTORY (DEDICATED SEPARATE VIEW) */}
         {activeTab === 'transactions' && (
-          <div className="animate-tab-enter">
+          <div key="transactions-view" className="animate-tab-enter">
             <TransactionList
               transactions={visibleTransactions}
               useBengaliDigits={useBengaliDigits}
@@ -612,7 +612,7 @@ export default function HomePage() {
 
         {/* TAB 4: DEBTS & LOANS (DEDICATED SEPARATE VIEW) */}
         {activeTab === 'debts' && (
-          <div className="animate-tab-enter">
+          <div key="debts-view" className="animate-tab-enter">
             <DebtsTracker
               debts={debts}
               accounts={accounts.filter((a: any) => a.userId === currentUser.id)}
@@ -627,7 +627,7 @@ export default function HomePage() {
 
         {/* TAB 5: ANALYTICS & BUDGET (DEDICATED VIEW) */}
         {activeTab === 'analytics' && (
-          <div className="space-y-6 animate-tab-enter">
+          <div key="analytics-view" className="space-y-6 animate-tab-enter">
             <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">

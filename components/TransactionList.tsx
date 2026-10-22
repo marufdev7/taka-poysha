@@ -522,15 +522,16 @@ export function TransactionList({
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-slate-100 text-xs">
+      {/* Type Filter Tabs */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-slate-100 text-xs no-scrollbar">
         <button
           onClick={() => {
             setTypeFilter('ALL');
             setPage(1);
           }}
-          className={`px-3 py-1.5 rounded-lg font-medium transition shrink-0 cursor-pointer ${
+          className={`px-3 py-1.5 rounded-xl font-semibold transition-all duration-300 ease-out active:scale-95 shrink-0 cursor-pointer ${
             typeFilter === 'ALL'
-              ? 'bg-slate-900 text-white'
+              ? 'bg-slate-900 text-white shadow-xs'
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
@@ -541,9 +542,9 @@ export function TransactionList({
             setTypeFilter('INCOME');
             setPage(1);
           }}
-          className={`px-3 py-1.5 rounded-lg font-medium transition shrink-0 cursor-pointer ${
+          className={`px-3 py-1.5 rounded-xl font-semibold transition-all duration-300 ease-out active:scale-95 shrink-0 cursor-pointer ${
             typeFilter === 'INCOME'
-              ? 'bg-emerald-600 text-white'
+              ? 'bg-emerald-600 text-white shadow-xs'
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
@@ -554,9 +555,9 @@ export function TransactionList({
             setTypeFilter('EXPENSE');
             setPage(1);
           }}
-          className={`px-3 py-1.5 rounded-lg font-medium transition shrink-0 cursor-pointer ${
+          className={`px-3 py-1.5 rounded-xl font-semibold transition-all duration-300 ease-out active:scale-95 shrink-0 cursor-pointer ${
             typeFilter === 'EXPENSE'
-              ? 'bg-rose-600 text-white'
+              ? 'bg-rose-600 text-white shadow-xs'
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
@@ -567,9 +568,9 @@ export function TransactionList({
             setTypeFilter('TRANSFER');
             setPage(1);
           }}
-          className={`px-3 py-1.5 rounded-lg font-medium transition shrink-0 cursor-pointer ${
+          className={`px-3 py-1.5 rounded-xl font-semibold transition-all duration-300 ease-out active:scale-95 shrink-0 cursor-pointer ${
             typeFilter === 'TRANSFER'
-              ? 'bg-indigo-600 text-white'
+              ? 'bg-indigo-600 text-white shadow-xs'
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
@@ -579,11 +580,11 @@ export function TransactionList({
 
       {/* Transactions Table/List */}
       {filtered.length === 0 ? (
-        <div className="text-center py-12 text-slate-400 text-sm bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+        <div className="text-center py-12 text-slate-400 text-sm bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 animate-tab-enter">
           এই ফিল্টারে কোনো লেনদেন পাওয়া যায়নি।
         </div>
       ) : (
-        <div className="divide-y divide-slate-100">
+        <div key={`${typeFilter}-${selectedMonth}-${page}`} className="divide-y divide-slate-100 animate-tab-enter">
           {paginated.map((t) => {
             const isIncome = t.type === 'INCOME';
             const isExpense = t.type === 'EXPENSE';

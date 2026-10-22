@@ -524,35 +524,35 @@ export function DebtsTracker({
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 mb-3 text-xs border-b border-slate-100">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 mb-3 text-xs border-b border-slate-100 no-scrollbar">
         <button
           onClick={() => setFilter('PENDING')}
-          className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
-            filter === 'PENDING' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
+          className={`px-3 py-1.5 rounded-xl font-semibold transition-all duration-300 ease-out active:scale-95 cursor-pointer ${
+            filter === 'PENDING' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           বাকি আছে (Pending)
         </button>
         <button
           onClick={() => setFilter('RECEIVABLE')}
-          className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
-            filter === 'RECEIVABLE' ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+          className={`px-3 py-1.5 rounded-xl font-semibold transition-all duration-300 ease-out active:scale-95 cursor-pointer ${
+            filter === 'RECEIVABLE' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           আমি পাব
         </button>
         <button
           onClick={() => setFilter('PAYABLE')}
-          className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
-            filter === 'PAYABLE' ? 'bg-rose-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+          className={`px-3 py-1.5 rounded-xl font-semibold transition-all duration-300 ease-out active:scale-95 cursor-pointer ${
+            filter === 'PAYABLE' ? 'bg-rose-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           আমাকে দিতে হবে
         </button>
         <button
           onClick={() => setFilter('SETTLED')}
-          className={`px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
-            filter === 'SETTLED' ? 'bg-slate-700 text-white' : 'text-slate-600 hover:bg-slate-100'
+          className={`px-3 py-1.5 rounded-xl font-semibold transition-all duration-300 ease-out active:scale-95 cursor-pointer ${
+            filter === 'SETTLED' ? 'bg-slate-700 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           পরিশোধিত (Settled)
@@ -561,11 +561,11 @@ export function DebtsTracker({
 
       {/* List */}
       {filtered.length === 0 ? (
-        <div className="text-center py-8 text-slate-400 text-xs">
+        <div className="text-center py-8 text-slate-400 text-xs animate-tab-enter">
           কোনো ধারের হিসাব নেই। &quot;+ নতুন ধার/পাওনা যোগ&quot; বাটনে ক্লিক করে হিসাব রাখুন।
         </div>
       ) : (
-        <div className="divide-y divide-slate-100">
+        <div key={filter} className="divide-y divide-slate-100 animate-tab-enter">
           {filtered.map((d) => {
             const isReceivable = d.type === 'RECEIVABLE';
             const daysBadge = getDaysDiffText(d.dueDate, d.status);
@@ -692,7 +692,7 @@ export function DebtsTracker({
                           setSettleType('FULL');
                           setSettleCustomAmount(String(d.amount));
                         }}
-                        className={`flex-1 py-1.5 px-2 text-xs font-bold rounded-lg transition-all duration-200 cursor-pointer ${
+                        className={`flex-1 py-1.5 px-2 text-xs font-bold rounded-lg transition-all duration-300 ease-out active:scale-95 cursor-pointer ${
                           settleType === 'FULL'
                             ? isReceivable
                               ? 'bg-emerald-600 text-white shadow-xs'
@@ -710,7 +710,7 @@ export function DebtsTracker({
                             setSettleCustomAmount(String(Math.round(d.amount / 2)));
                           }
                         }}
-                        className={`flex-1 py-1.5 px-2 text-xs font-bold rounded-lg transition-all duration-200 cursor-pointer ${
+                        className={`flex-1 py-1.5 px-2 text-xs font-bold rounded-lg transition-all duration-300 ease-out active:scale-95 cursor-pointer ${
                           settleType === 'PARTIAL'
                             ? isReceivable
                               ? 'bg-emerald-600 text-white shadow-xs'
@@ -722,91 +722,97 @@ export function DebtsTracker({
                       </button>
                     </div>
 
-                    {/* Partial Amount Input & Quick Chips */}
-                    {settleType === 'PARTIAL' ? (
-                      <div className="space-y-2.5 bg-white/95 p-3 rounded-xl border border-amber-200/80">
-                        <div className="flex items-center justify-between">
-                          <label className="block text-[11px] font-bold text-slate-700">
-                            আংশিক পরিশোধের পরিমাণ (টাকা) *
-                          </label>
-                          <span className="text-[10px] text-slate-400">
-                            মোট বকেয়া: {formatBDT(d.amount, { useBengaliDigits })}
-                          </span>
+                    {/* Full Settlement Notice (Smooth Animated Accordion) */}
+                    <div className={`inline-collapse-wrapper ${settleType === 'FULL' ? 'open' : ''}`}>
+                      <div className="inline-collapse-content">
+                        <div className="text-xs bg-white/80 p-2.5 rounded-xl border border-amber-200/50">
+                          {isReceivable ? (
+                            <p className="text-emerald-700 font-medium leading-relaxed">
+                              ℹ️ {d.personName}-এর থেকে পুরো <strong>{formatBDT(d.amount, { useBengaliDigits })}</strong> ফেরত পেলে এটি আপনার নির্বাচিত ওয়ালেটে জমা হবে এবং ধারটি সম্পূর্ণ &apos;পরিশোধিত&apos; তালিকায় যাবে।
+                            </p>
+                          ) : (
+                            <p className="text-rose-700 font-medium leading-relaxed">
+                              ⚠️ {d.personName}-কে সম্পূর্ণ <strong>{formatBDT(d.amount, { useBengaliDigits })}</strong> পরিশোধ করলে আপনার নির্বাচিত ওয়ালেট থেকে এই পরিমাণ টাকা স্বয়ংক্রিয়ভাবে কর্তন হবে এবং দেনাটি পরিশোধিত হবে।
+                            </p>
+                          )}
                         </div>
+                      </div>
+                    </div>
 
-                        <div className="relative">
-                          <span className="absolute left-3 top-2 text-sm font-bold text-slate-400">৳</span>
-                          <input
-                            type="number"
-                            placeholder="যেমন: ৫০০"
-                            value={settleCustomAmount}
-                            onChange={(e) => setSettleCustomAmount(e.target.value)}
-                            max={d.amount}
-                            min={1}
-                            className="w-full text-sm font-bold pl-8 pr-3 py-1.5 border border-slate-200 rounded-xl focus:outline-emerald-500 bg-white"
-                          />
-                        </div>
+                    {/* Partial Settlement Form (Smooth Animated Accordion) */}
+                    <div className={`inline-collapse-wrapper ${settleType === 'PARTIAL' ? 'open' : ''}`}>
+                      <div className="inline-collapse-content">
+                        <div className="space-y-2.5 bg-white/95 p-3 rounded-xl border border-amber-200/80 shadow-2xs">
+                          <div className="flex items-center justify-between">
+                            <label className="block text-[11px] font-bold text-slate-700">
+                              আংশিক পরিশোধের পরিমাণ (টাকা) *
+                            </label>
+                            <span className="text-[10px] text-slate-400">
+                              মোট বকেয়া: {formatBDT(d.amount, { useBengaliDigits })}
+                            </span>
+                          </div>
 
-                        {/* Quick Percentage Chips */}
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {[
-                            { label: '২৫%', pct: 0.25 },
-                            { label: '৫০%', pct: 0.5 },
-                            { label: '৭৫%', pct: 0.75 },
-                          ].map((chip) => {
-                            const val = Math.round(d.amount * chip.pct);
+                          <div className="relative">
+                            <span className="absolute left-3 top-2 text-sm font-bold text-slate-400">৳</span>
+                            <input
+                              type="number"
+                              placeholder="যেমন: ৫০০"
+                              value={settleCustomAmount}
+                              onChange={(e) => setSettleCustomAmount(e.target.value)}
+                              max={d.amount}
+                              min={1}
+                              className="w-full text-sm font-bold pl-8 pr-3 py-1.5 border border-slate-200 rounded-xl focus:outline-emerald-500 bg-white"
+                            />
+                          </div>
+
+                          {/* Quick Percentage Chips */}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {[
+                              { label: '২৫%', pct: 0.25 },
+                              { label: '৫০%', pct: 0.5 },
+                              { label: '৭৫%', pct: 0.75 },
+                            ].map((chip) => {
+                              const val = Math.round(d.amount * chip.pct);
+                              return (
+                                <button
+                                  key={chip.label}
+                                  type="button"
+                                  onClick={() => setSettleCustomAmount(String(val))}
+                                  className="px-2.5 py-1 text-[11px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg transition cursor-pointer active:scale-95"
+                                >
+                                  {chip.label} ({formatBDT(val, { useBengaliDigits })})
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* Live calculation feedback */}
+                          {(() => {
+                            const val = parseFloat(settleCustomAmount) || 0;
+                            const remaining = Math.max(0, d.amount - val);
+                            const isOver = val > d.amount;
                             return (
-                              <button
-                                key={chip.label}
-                                type="button"
-                                onClick={() => setSettleCustomAmount(String(val))}
-                                className="px-2.5 py-1 text-[11px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg transition cursor-pointer active:scale-95"
-                              >
-                                {chip.label} ({formatBDT(val, { useBengaliDigits })})
-                              </button>
+                              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                                {isOver ? (
+                                  <span className="text-rose-600 font-bold text-[11px]">
+                                    ⚠️ বকেয়ার চেয়ে বেশি (৳{d.amount}) পরিশোধ সম্ভব নয়
+                                  </span>
+                                ) : (
+                                  <>
+                                    <span className="text-slate-600">
+                                      এখন পরিশোধ: <strong className="text-slate-800">{formatBDT(val, { useBengaliDigits })}</strong>
+                                    </span>
+                                    <span className="text-amber-800 font-semibold">
+                                      বাকি থাকবে: <strong className="text-rose-600 font-bold">{formatBDT(remaining, { useBengaliDigits })}</strong>
+                                    </span>
+                                  </>
+                                )}
+                              </div>
                             );
-                          })}
+                          })()}
                         </div>
-
-                        {/* Live calculation feedback */}
-                        {(() => {
-                          const val = parseFloat(settleCustomAmount) || 0;
-                          const remaining = Math.max(0, d.amount - val);
-                          const isOver = val > d.amount;
-                          return (
-                            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                              {isOver ? (
-                                <span className="text-rose-600 font-bold text-[11px]">
-                                  ⚠️ বকেয়ার চেয়ে বেশি (৳{d.amount}) পরিশোধ সম্ভব নয়
-                                </span>
-                              ) : (
-                                <>
-                                  <span className="text-slate-600">
-                                    এখন পরিশোধ: <strong className="text-slate-800">{formatBDT(val, { useBengaliDigits })}</strong>
-                                  </span>
-                                  <span className="text-amber-800 font-semibold">
-                                    বাকি থাকবে: <strong className="text-rose-600 font-bold">{formatBDT(remaining, { useBengaliDigits })}</strong>
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                          );
-                        })()}
                       </div>
-                    ) : (
-                      /* Full settlement notice */
-                      <div className="text-xs bg-white/80 p-2.5 rounded-xl border border-amber-200/50">
-                        {isReceivable ? (
-                          <p className="text-emerald-700 font-medium leading-relaxed">
-                            ℹ️ {d.personName}-এর থেকে পুরো <strong>{formatBDT(d.amount, { useBengaliDigits })}</strong> ফেরত পেলে এটি আপনার নির্বাচিত ওয়ালেটে জমা হবে এবং ধারটি সম্পূর্ণ 'পরিশোধিত' তালিকায় যাবে।
-                          </p>
-                        ) : (
-                          <p className="text-rose-700 font-medium leading-relaxed">
-                            ⚠️ {d.personName}-কে সম্পূর্ণ <strong>{formatBDT(d.amount, { useBengaliDigits })}</strong> পরিশোধ করলে আপনার নির্বাচিত ওয়ালেট থেকে এই পরিমাণ টাকা স্বয়ংক্রিয়ভাবে কর্তন হবে এবং দেনাটি পরিশোধিত হবে।
-                          </p>
-                        )}
-                      </div>
-                    )}
+                    </div>
 
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-700 mb-1">
