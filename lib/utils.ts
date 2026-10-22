@@ -103,10 +103,19 @@ export function getLocalDateString(d: Date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
-// Safely parse date to noon UTC Date so the calendar day stays identical across all timezones
+// Safely parse date to Date object keeping calendar day and local time intact across all timezones
 export function parseDateSafe(dateInput: string | Date): Date {
-  if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
-    return new Date(`${dateInput}T12:00:00.000Z`);
+  if (dateInput instanceof Date) return dateInput;
+  if (typeof dateInput === 'string') {
+    // Plain date: YYYY-MM-DD -> set to noon UTC so calendar day stays identical across all timezones
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+      return new Date(`${dateInput}T12:00:00.000Z`);
+    }
+    // DateTime string without explicit timezone offset (+/-HH:MM or Z), e.g. "2026-10-22T14:20:00"
+    // Attach Bangladesh Standard Time (+06:00) so Node server in UTC doesn't interpret local time as UTC
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?(\.\d+)?$/.test(dateInput)) {
+      return new Date(`${dateInput}+06:00`);
+    }
   }
   return new Date(dateInput);
 }

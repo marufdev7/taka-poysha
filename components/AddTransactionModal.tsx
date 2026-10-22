@@ -197,8 +197,21 @@ export function AddTransactionModal({
       if (transactionToEdit.date) {
         const d = new Date(transactionToEdit.date);
         setDate(getLocalDateString(d));
-        const hh = String(d.getHours()).padStart(2, '0');
-        const mm = String(d.getMinutes()).padStart(2, '0');
+        let timeSource = d;
+        const isUtcNormalized =
+          (d.getUTCHours() === 12 || d.getUTCHours() === 0) &&
+          d.getUTCMinutes() === 0 &&
+          d.getUTCSeconds() === 0;
+
+        if (isUtcNormalized && transactionToEdit.createdAt) {
+          const createdDate = new Date(transactionToEdit.createdAt);
+          if (!isNaN(createdDate.getTime())) {
+            timeSource = createdDate;
+          }
+        }
+
+        const hh = String(timeSource.getHours()).padStart(2, '0');
+        const mm = String(timeSource.getMinutes()).padStart(2, '0');
         setTime(`${hh}:${mm}`);
       }
       setNote(transactionToEdit.note || '');
@@ -279,6 +292,22 @@ export function AddTransactionModal({
 
     setLoading(true);
     const isEditing = Boolean(transactionToEdit);
+
+    // Format date & time into unambiguous ISO string with local timezone preserved
+    let finalDateIso: string;
+    if (date && time) {
+      const [year, month, day] = date.split('-').map(Number);
+      const [hours, minutes] = time.split(':').map(Number);
+      const localDate = new Date(year, month - 1, day, hours, minutes, 0);
+      finalDateIso = localDate.toISOString();
+    } else if (date) {
+      const [year, month, day] = date.split('-').map(Number);
+      const localDate = new Date(year, month - 1, day, 12, 0, 0);
+      finalDateIso = localDate.toISOString();
+    } else {
+      finalDateIso = new Date().toISOString();
+    }
+
     try {
       const res = await fetch('/api/transactions', {
         method: isEditing ? 'PATCH' : 'POST',
@@ -292,7 +321,7 @@ export function AddTransactionModal({
           categoryId: type === 'TRANSFER' ? null : categoryId,
           type,
           amount: parseFloat(amount),
-          date: time ? `${date}T${time}:00` : date,
+          date: finalDateIso,
           note,
           visibility,
         }),
