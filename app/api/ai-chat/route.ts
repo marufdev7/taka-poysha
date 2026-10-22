@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { formatBDT, formatMonthBengali, toBengaliNumerals } from '@/lib/utils';
+import { formatBDT, formatMonthBengali, toBengaliNumerals, cleanLatex } from '@/lib/utils';
 import { getAuthenticatedUser } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -23,8 +23,16 @@ async function callGemini(apiKey: string, prompt: string, history: Array<{ role:
     parts: [{ text: prompt }],
   });
 
-  // Fast & highly reliable models cascade (3.5 -> 3.7 -> 3.8)
-  const models = ['gemini-3.5-flash', 'gemini-3.7-flash', 'gemini-3.8-flash'];
+  // Fast & highly reliable models cascade (prioritizing active quota models)
+  const models = [
+    'gemini-3.5-flash-lite',
+    'gemini-3.1-flash-lite',
+    'gemma-4-31b-it',
+    'gemini-flash-latest',
+    'gemini-3.5-flash',
+    'gemini-3.8-flash',
+  ];
+
   for (const model of models) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -42,7 +50,7 @@ async function callGemini(apiKey: string, prompt: string, history: Array<{ role:
         }
       } else {
         const errorBody = await res.text();
-        console.warn(`Gemini ${model} returned ${res.status}:`, errorBody.slice(0, 100));
+        console.warn(`Gemini ${model} returned ${res.status}:`, errorBody.slice(0, 120));
       }
     } catch (err: any) {
       console.warn(`Gemini ${model} call failed:`, err?.message || err);
@@ -87,13 +95,13 @@ export async function POST(request: Request) {
 
     // Date ranges
     const startOfCurrentMonth = new Date(currentYear, currentMonthIndex, 1);
-    const endOfCurrentMonth = new Date(currentYear, currentMonthIndex + 1, 0, 23, 59, 59);
+    const endOfCurrentMonth = new Date(currentYear, currentMonthIndex + 1, 0, 23, 59, 59, 999);
 
     const startOfPrevMonth = new Date(prevYear, prevMonthIndex, 1);
-    const endOfPrevMonth = new Date(prevYear, prevMonthIndex + 1, 0, 23, 59, 59);
+    const endOfPrevMonth = new Date(prevYear, prevMonthIndex + 1, 0, 23, 59, 59, 999);
 
     const startOfToday = new Date(currentYear, currentMonthIndex, today.getDate(), 0, 0, 0);
-    const endOfToday = new Date(currentYear, currentMonthIndex, today.getDate(), 23, 59, 59);
+    const endOfToday = new Date(currentYear, currentMonthIndex, today.getDate(), 23, 59, 59, 999);
 
     // Resolve effectiveUserId and effectiveHouseholdId
     let effectiveUserId = userId || auth.userId;
@@ -280,6 +288,22 @@ export async function POST(request: Request) {
     // Wallets total
     const totalWalletBalance = accounts.reduce((sum, a) => sum + a.balance, 0);
 
+    // Days elapsed, total days, days remaining
+    const totalDaysInMonth = new Date(currentYear, currentMonthIndex + 1, 0).getDate();
+    const daysPassedInMonth = Math.max(today.getDate(), 1);
+    const daysRemainingInMonth = Math.max(0, totalDaysInMonth - today.getDate());
+
+    const averageDailyExpense = Math.round(currentExpense / daysPassedInMonth);
+    const rentExpense = catMap.get('বাসা ভাড়া') || catMap.get('বাসা ভাড়া') || 0;
+    const averageDailyExpenseExcludingRent = Math.round(
+      Math.max(currentExpense - rentExpense, 0) / daysPassedInMonth
+    );
+    const totalMonthlyBudgetLimit = budgets.reduce((sum, b) => sum + b.limitAmount, 0);
+
+    const projectedRemainingExpense = Math.round(daysRemainingInMonth * averageDailyExpense);
+    const projectedRemainingExcludingRent = Math.round(daysRemainingInMonth * averageDailyExpenseExcludingRent);
+    const projectedDeficitOrSurplus = totalWalletBalance - projectedRemainingExpense;
+
     // Detailed day-by-day and itemized transactions
     const dailyBreakdown: Record<string, { date: string; dayOfMonth: number; income: number; expense: number; count: number; items: any[] }> = {};
     const allTransactionsList = currentTransactions.map((t) => {
@@ -321,22 +345,25 @@ export async function POST(request: Request) {
       };
     });
 
-    // Average daily expense & budget limits
-    const daysPassedInMonth = Math.max(today.getDate(), 1);
-    const averageDailyExpense = Math.round(currentExpense / daysPassedInMonth);
-    const rentExpense = catMap.get('বাসা ভাড়া') || catMap.get('বাসা ভাড়া') || 0;
-    const averageDailyExpenseExcludingRent = Math.round(
-      Math.max(currentExpense - rentExpense, 0) / daysPassedInMonth
-    );
-    const totalMonthlyBudgetLimit = budgets.reduce((sum, b) => sum + b.limitAmount, 0);
-
     // AI Context Object
     const financialContext = {
       viewMode: isFamilyView ? 'পারিবারিক' : 'ব্যক্তিগত',
       currentMonth: formatMonthBengali(currentMonthKey),
       prevMonth: formatMonthBengali(prevMonthKey),
+      monthProgress: {
+        totalDaysInMonth,
+        daysPassedInMonth,
+        daysRemainingInMonth,
+        averageDailyExpense,
+        averageDailyExpenseExcludingRent,
+        projectedRemainingExpense,
+        totalWalletBalance,
+        projectedDeficitOrSurplus,
+      },
       metrics: {
         daysPassedInMonth,
+        daysRemainingInMonth,
+        totalDaysInMonth,
         averageDailyExpense,
         averageDailyExpenseExcludingRent,
         rentExpense,
@@ -400,20 +427,27 @@ ${JSON.stringify(financialContext, null, 2)}
 ব্যবহারকারীর প্রশ্ন: "${message}"
 
 বিশেষ নির্দেশনা:
-১. ব্যবহারকারী যদি সম্ভাব্য ভবিষ্যৎ বা আগামী মাসের আয় (যেমন "samne mase income 8000 taka", "আগামী মাসে ৮০০০ টাকা আয় হলে") এবং বর্তমান বাজেট অনুযায়ী সঞ্চয় ও দৈনিক গড় খরচের হিসাব জানতে চায়:
-   - বাজেট অনুযায়ী সম্ভাব্য সঞ্চয় = (সম্ভাব্য আয় - মোট বাজেট সীমা) নিখুঁতভাবে হিসাব করে বলো (যেমন আয় ৳ ৮,০০০ এবং মোট বাজেট সীমা ৳ ${totalMonthlyBudgetLimit} হলে সঞ্চয় ৳ ${8000 - totalMonthlyBudgetLimit})।
-   - বর্তমান দৈনিক গড় খরচ (বাসা ভাড়াসহ ৳ ${averageDailyExpense}/দিন এবং বাসা ভাড়া ছাড়া ৳ ${averageDailyExpenseExcludingRent}/দিন) পরিষ্কারভাবে তুলে ধরো।
-   - বাস্তব বিশ্লেষণ: বর্তমান খরচের ধারা অব্যাহত থাকলে কী ঘটবে এবং কাঙ্ক্ষিত সঞ্চয় ধরে রাখতে হলে খাওয়া-দাওয়া বা দৈনন্দিন খরচে কীভাবে রাশ টানা দরকার তা বাস্তবসম্মতভাবে বুঝিয়ে বলো।
-২. ব্যবহারকারী যদি নির্দিষ্ট কোনো তারিখের হিসাব চায় (যেমন: "৯ তারিখের হিসাব", "9 tarikher hisab", "গতকাল", "আজকে", ইত্যাদি), তবে "dailyBreakdown" বা "allTransactionsList" থেকে ওই নির্দিষ্ট তারিখের মোট আয়, মোট ব্যয় এবং কী কী জিনিস কেনাকাটা বা খরচ হয়েছে তার বিস্তারিত তালিকা স্পষ্টভাবে বলো।
-৩. ব্যবহারকারী যদি কোনো নির্দিষ্ট খাত (যেমন "বাড়ি ভাড়া", "খালার বিল", "খাবার") বা নির্দিষ্ট ব্যক্তির খরচের কথা জানতে চায়, তা তালিকা থেকে খুঁজে সঠিক পরিমাণ বলো।
-৪. ব্যবহারকারী যদি গত মাস বনাম চলতি মাসের তুলনা চায়, তবে দুই মাসের আয়, ব্যয় ও সঞ্চয়ের পার্থক্য স্পষ্টভাবে তুলে ধরো।
-৫. ব্যবহারকারী বাংলা বা বাংলিশ (যেমন "samne mase amar income 8000 taka", "goto mash", "9 tarikher hisab", "koto taka khoroch hoice") যেভাবেই লিখুক, প্রশ্নটির গভীর অর্থ বুঝে অত্যন্ত শুদ্ধ, আকর্ষণীয় ও বাস্তবসম্মত বাংলায় উত্তর দাও।
-৬. কোনো মনগড়া সংখ্যা বলবে না; প্রদত্ত আসল ডেটা ও গাণিতিক হিসাব থেকেই উত্তর দেবে।
-৭. উত্তর সর্বদা সুস্পষ্ট, তথ্যবহুল এবং ইমোজি ও মার্কডাউন বুলেট পয়েন্ট দিয়ে সুন্দরভাবে উপস্থাপন করো।`;
+১. অবশিষ্ট দিন ও ঘাটতি বিশ্লেষণ (Remaining Days & Deficit Analysis):
+   - ব্যবহারকারী যদি জানতে চায় চলতি মাসের গড় খরচে বাকি দিনগুলো পার করতে আরও কত টাকা লাগবে, বা বর্তমান ব্যালেন্সে মাস পার করা যাবে কিনা:
+     * মাসের মোট দিন: ${totalDaysInMonth}, অতিক্রান্ত হয়েছে: ${daysPassedInMonth} দিন, বাকি আছে: ${daysRemainingInMonth} দিন।
+     * বর্তমান দৈনিক গড় খরচ: ৳ ${averageDailyExpense} /দিন (বাসা ভাড়া ছাড়া ৳ ${averageDailyExpenseExcludingRent} /দিন)।
+     * বাকি ${daysRemainingInMonth} দিনের আনুমানিক মোট খরচ: ${daysRemainingInMonth} × ৳ ${averageDailyExpense} = ৳ ${projectedRemainingExpense}।
+     * ব্যবহারকারীর বর্তমান মোট ওয়ালেট ব্যালেন্স: ৳ ${totalWalletBalance}।
+     * আর্থিক অবস্থা: ${projectedDeficitOrSurplus < 0 ? `ঘাটতি ৳ ${Math.abs(projectedDeficitOrSurplus)}` : `উদ্বৃত্ত ৳ ${projectedDeficitOrSurplus}`}।
+     * এই স্পষ্ট হিসাবটি তুলে ধরে ব্যবহারকারীকে বাস্তবসম্মত ও সহমর্মিতাপূর্ণ পরামর্শ দাও (চরম ব্যয়সংকোচন, অপ্রয়োজনীয় খাবার/চা-নাশতা বন্ধ, হেঁটে চলাচল, জরুরি তহবিল বা সাহায্য)।
+২. ভবিষ্যৎ বা আগামী মাসের সম্ভাব্য আয়/বাজেট সংক্রান্ত প্রশ্ন:
+   - বাজেট অনুযায়ী সম্ভাব্য সঞ্চয় = (সম্ভাব্য আয় - মোট বাজেট সীমা) নিখুঁতভাবে হিসাব করে বলো।
+৩. নির্দিষ্ট তারিখের হিসাব (যেমন "৯ তারিখের হিসাব", "গতকাল", "আজকে"):
+   - "dailyBreakdown" বা "allTransactionsList" থেকে ওই নির্দিষ্ট তারিখের আয়, ব্যয় ও কেনাকাটার তালিকা স্পষ্টভাবে বলো।
+৪. বাসা ভাড়া বা বিদ্যুৎ বিলের মতো স্থির খরচে ১০% কমানোর মতো অবাস্তব কথা বলবে না। সর্বদা বাস্তবসম্মত পরামর্শ দাও।
+৫. ব্যবহারকারী বাংলা বা বাংলিশ (যেমন "aj porjonto average je taka khoroch hocce ei month a baki din gulo par korte hobe amar ar koto taka lagbe") যেভাবে লিখুক, প্রশ্নটির গভীর অর্থ বুঝে অত্যন্ত শুদ্ধ, আকর্ষণীয় ও বাস্তবসম্মত বাংলায় উত্তর দাও।
+৬. উত্তর সর্বদা তথ্যবহুল, উৎসাহব্যঞ্জক এবং ইমোজি ও মার্কডাউন বুলেট পয়েন্ট দিয়ে সাজিয়ে উপস্থাপন করো।
+৭. অতি জরুরি: কখনোই LaTeX বা গণিতের কোড ফরম্যাট (যেমন: $$, \\text{...}, \\mathbf{...}) ব্যবহার করবে না। সমীকরণ বা গণিত বোঝাতে সাধারণ বাংলা টেক্সট ও সহজ চিহ্ন ব্যবহার করবে (যেমন: '৳ ৯,০০০ (আয়) - ৳ ৭,০০০ (খরচ) = ৳ ২,০০০')।
+৮. সম্ভাষণ ও শিষ্টাচার (Greetings): কখনোই 'নমস্কার' বলবে না। উত্তরের শুরুতে সম্ভাষণ জানাতে সর্বদা আন্তরিকভাবে 'আসসালামু আলাইকুম' বলে শুরু করবে।`;
 
         const result = await callGemini(geminiKey, systemPrompt, history);
         if (result && result.text) {
-          return NextResponse.json({ reply: result.text, model: result.model });
+          return NextResponse.json({ reply: cleanLatex(result.text), model: result.model });
         }
       } catch (err) {
         console.warn('Gemini chat call failed, falling back to local engine:', err);
@@ -468,7 +502,7 @@ ${JSON.stringify(financialContext, null, 2)}
           })
           .join('\n');
 
-        reply = `### 📅 ${targetDay} অক্টোবরের আর্থিক হিসাব
+        reply = `### 📅 ${targetDay} ${formatMonthBengali(currentMonthKey)} এর আর্থিক হিসাব
 
 • **মোট ব্যয়:** **${formatBDT(dayExpense)}**
 • **মোট আয়:** **${formatBDT(dayIncome)}**
@@ -477,10 +511,43 @@ ${JSON.stringify(financialContext, null, 2)}
 **খরচ ও আয়ের বিস্তারিত তালিকা:**
 ${itemsList}`;
       } else {
-        reply = `${targetDay} অক্টোবরে কোনো লেনদেনের তথ্য পাওয়া যায়নি। এই তারিখে কোনো খরচ বা আয় রেকর্ড করা হয়নি।`;
+        reply = `${targetDay} ${formatMonthBengali(currentMonthKey)}-এ কোনো লেনদেনের তথ্য পাওয়া যায়নি। এই তারিখে কোনো খরচ বা আয় রেকর্ড করা হয়নি।`;
       }
     }
-    // 1. Comparison between last month and this month
+    // 1. Remaining Days & Deficit Analysis (e.g. "baki din gulo par korte amar ar koto taka lagbe", "average খরচে বাকি দিন")
+    else if (
+      (q.includes('baki din') || q.includes('বাকি দিন') || q.includes('remaining') || q.includes('par korte') || q.includes('chalate') || q.includes('পার করতে') || q.includes('চলতে')) ||
+      (q.includes('average') && (q.includes('lagbe') || q.includes('লাগবে') || q.includes('koto') || q.includes('কত') || q.includes('kom') || q.includes('balance') || q.includes('par'))) ||
+      ((q.includes('balance kom') || q.includes('ব্যালেন্স কম') || q.includes('টাকা কম') || q.includes('টানাপোড়েন')) && (q.includes('koto') || q.includes('দিন') || q.includes('din') || q.includes('মাস') || q.includes('month')))
+    ) {
+      const isDeficit = projectedDeficitOrSurplus < 0;
+      const deficitAmount = Math.abs(projectedDeficitOrSurplus);
+
+      reply = `### 📅 চলতি মাসের অবশিষ্ট দিন ও আর্থিক পরিস্থিতি বিশ্লেষণ
+
+• **মাসের মোট দিন:** ${totalDaysInMonth} দিন
+• **আজকের তারিখ:** ${daysPassedInMonth} ${formatMonthBengali(currentMonthKey)} (বাকি আছে **${daysRemainingInMonth} দিন**)
+• **দৈনিক গড় খরচ:** **৳ ${averageDailyExpense} /দিন** (বাসা ভাড়া ছাড়া: **৳ ${averageDailyExpenseExcludingRent} /দিন**)
+• **বাকি ${daysRemainingInMonth} দিনের আনুমানিক খরচ:** ${daysRemainingInMonth} দিন × ৳ ${averageDailyExpense} = **৳ ${projectedRemainingExpense.toLocaleString('en-IN')}**
+• **আপনার বর্তমান ওয়ালেট স্থিতি:** **৳ ${totalWalletBalance.toLocaleString('en-IN')}**
+
+---
+
+### ⚠️ আর্থিক মূল্যায়ন:
+${
+  isDeficit
+    ? `আপনার বর্তমান ব্যালেন্স দিয়ে বাকি ${daysRemainingInMonth} দিন পার করার ক্ষেত্রে আনুমানিক **৳ ${deficitAmount.toLocaleString('en-IN')} ঘাটতি (Deficit)** হতে পারে।`
+    : `আপনার বর্তমান ব্যালেন্স (${formatBDT(totalWalletBalance)}) দিয়ে অবশিষ্ট দিনগুলো চালিয়েও আনুমানিক ৳ ${projectedDeficitOrSurplus.toLocaleString('en-IN')} উদ্বৃত্ত থাকার সম্ভাবনা রয়েছে।`
+}
+
+---
+
+### 💡 এই মুহূর্তে করণীয় ও বাস্তবসম্মত পরামর্শ:
+১. **চরম ব্যয়সংকোচন:** হাতে ব্যালেন্স কম থাকায় আগামী ${daysRemainingInMonth} দিন বাইরে খাওয়া, নাশতা বা কেনাকাটা পুরোপুরি বন্ধ রাখুন। 
+২. **দৈনিক খরচে নতুন সীমা:** বাসা ভাড়া বাদে বাকি দিনগুলোতে আপনার খরচ দৈনিক **৳ ${daysRemainingInMonth > 0 ? Math.floor(totalWalletBalance / daysRemainingInMonth) : 0}** এর মধ্যে নামিয়ে আনুন।
+৩. **জরুরি ব্যাকআপ:** কোনো আকস্মিক বিপদ বা জরুরি প্রয়োজন দেখা দিলে পরিবারের সদস্য বা বিশ্বস্ত কারো কাছ থেকে সাময়িক ধার নেওয়া বা বিকল্প আয়ের কথা বিবেচনায় রাখুন।`;
+    }
+    // 2. Comparison between last month and this month
     else if (
       !q.includes('na') &&
       !q.includes('না') &&
@@ -535,13 +602,12 @@ ${itemsList}`;
           : 'সঞ্চয়ের হার অন্তত ২০%-এ উন্নীত করতে শীর্ষ ব্যয়ের খাতগুলোতে বাজেট সীমা নির্ধারণ করুন।'
       }`;
     }
-    // 1.5 Future Income & Projected Savings based on Budget & Daily Average (e.g. "samne mase 8000 taka income hoy...")
+    // 3. Future Income & Projected Savings based on Budget & Daily Average
     else if (
       (q.includes('samne') || q.includes('সামনে') || q.includes('আগামী') || q.includes('next month') || q.includes('পরের মাস')) ||
       (q.includes('save') && (q.includes('budget') || q.includes('বাজেট') || q.includes('income') || q.includes('আয়') || q.includes('ay'))) ||
       (q.includes('income') && q.includes('budget') && q.includes('koto'))
     ) {
-      // Extract income amount if specified in message (e.g. 8000, 10000)
       const incomeMatch = q.match(/(\d{3,7})/);
       const specifiedIncome = incomeMatch ? parseInt(incomeMatch[1], 10) : (currentIncome > 0 ? currentIncome : 8000);
       const projectedSavings = specifiedIncome - totalMonthlyBudgetLimit;
@@ -558,16 +624,16 @@ ${itemsList}`;
 ### 📊 দৈনিক গড় খরচ ও বাস্তব অবস্থা:
 • **বর্তমান দৈনিক গড় খরচ:** **৳ ${averageDailyExpense} /দিন** (বাসা ভাড়াসহ)
 • **বাসা ভাড়া ছাড়া দৈনিক গড় খরচ:** **৳ ${averageDailyExpenseExcludingRent} /দিন**
-• **বাস্তব পরিস্থিতি:** চলতি মাসের প্রথম ${daysPassedInMonth} দিনে মোট খরচ হয়েছে **${formatBDT(currentExpense)}**। যদি আগামী মাসে বাসা ভাড়া (${formatBDT(rentExpense)}) বাদে দৈনিক ৳ ${averageDailyExpenseExcludingRent} করে খরচ হতে থাকে, তবে ৩০ দিনে পরিবর্তনশীল খরচেই প্রায় ৳ ${averageDailyExpenseExcludingRent * 30} চলে যাবে।
+• **বাস্তব পরিস্থিতি:** চলতি মাসের প্রথম ${daysPassedInMonth} দিনে মোট খরচ হয়েছে **${formatBDT(currentExpense)}**।
 
 ---
 
 ### 💡 কাঙ্ক্ষিত সঞ্চয় ধরে রাখতে করণীয়:
-১. **দৈনিক খরচে নিয়ন্ত্রণ:** বাসা ভাড়া বাদে দৈনন্দিন খাওয়া-দাওয়া ও হাত খরচ দৈনিক **৳ ৬৫ - ৳ ৭০** এর মধ্যে সীমাবদ্ধ রাখুন।
-২. **বাজেট সীমা মেনে চলা:** চলতি মাসের ৬টি খাতের মোট বাজেট ৳ ${totalMonthlyBudgetLimit} কোনোভাবেই অতিক্রম হতে দেওয়া যাবে না।
-৩. **আগে সঞ্চয় নীতি:** আয় বা বেতন পাওয়ার সাথে সাথেই অন্তত **৳ ১,৫০০ - ৳ ২,০০০** আলাদা সেভিংস ওয়ালেটে সরিয়ে রাখুন।`;
+১. **দৈনিক খরচে নিয়ন্ত্রণ:** বাসা ভাড়া বাদে দৈনন্দিন খাওয়া-দাওয়া ও হাত খরচ দৈনিক একটি নির্দিষ্ট সীমার মধ্যে রাখুন।
+২. **বাজেট সীমা মেনে চলা:** প্রতিটি খাতের নির্ধারিত বাজেট সীমা অতিক্রম হতে দেওয়া যাবে না।
+৩. **আগে সঞ্চয় নীতি:** আয় বা বেতন পাওয়ার সাথে সাথেই অন্তত ১০%-১৫% আলাদা সেভিংস ওয়ালেটে সরিয়ে রাখুন।`;
     }
-    // 2. Top Expenses / Category Breakdown
+    // 4. Top Expenses / Category Breakdown
     else if (
       q.includes('শীর্ষ') ||
       q.includes('বেশি খরচ') ||
@@ -596,7 +662,7 @@ ${topList}
         )})। এই খাতে সতর্ক দৃষ্টি রাখা প্রয়োজন।`;
       }
     }
-    // 3. Savings & Advice
+    // 5. Savings & Advice
     else if (
       q.includes('সঞ্চয়') ||
       q.includes('সঞ্চয়') ||
@@ -606,16 +672,16 @@ ${topList}
       q.includes('savings') ||
       q.includes('টিপস')
     ) {
-      const topCat = sortedCategories[0]?.name || 'বাজার ও কেনাকাটা';
+      const topCat = sortedCategories.find(c => !c.name.includes('ভাড়া') && !c.name.includes('বিল'))?.name || 'বাজার ও কেনাকাটা';
       reply = `### 💡 সঞ্চয় বৃদ্ধি ও আর্থিক স্বাস্থ্য পরামর্শ
 
 • **বর্তমান সঞ্চয় স্থিতি:** **${formatBDT(currentNetSavings)}** (আয়ের **${savingsRate}%**)
 • **প্রস্তাবিত ৩টি কৌশল:**
-  1. **"${topCat}" খাতে বাজেট সীমা:** এই খাতে খরচ সবচেয়ে বেশি হচ্ছে। আগামী মাসের জন্য এতে সর্বোচ্চ সীমা বেঁধে দিন।
+  1. **"${topCat}" খাতে বাজেট সীমা:** বাসা ভাড়া ও ইউটিলিটির বাইরে এই পরিবর্তনশীল খাতে খরচ বেশি হচ্ছে। এতে সর্বোচ্চ সীমা বেঁধে দিন।
   2. **৫০-৩০-২০ নিয়ম:** আয়ের ৫০% মৌলিক প্রয়োজন, ৩০% অন্যান্য প্রয়োজন এবং অন্তত ২০% বাধ্যতামূলক সঞ্চয়ে স্থানান্তর করুন।
   3. **জরুরি তহবিল তৈরি:** যেকোনো আকস্মিক পরিস্থিতি সামাল দিতে কমপক্ষে ৩ মাসের খরচের সমান অর্থ আলাদা তহবিলে রাখুন।`;
     }
-    // 4. Budget & Limit Checks
+    // 6. Budget & Limit Checks
     else if (q.includes('বাজেট') || q.includes('সীমা') || q.includes('budget') || q.includes('limit')) {
       if (financialContext.budgets.length === 0) {
         reply = `চলতি মাসের জন্য এখনও কোনো ক্যাটাগরি বাজেট বা সীমা নির্ধারণ করা হয়নি। ড্যাশবোর্ডের "মাসিক বাজেট ও সীমা ট্র্যাকিং" সেকশন থেকে যেকোনো খাতের জন্য বাজেট সেট করতে পারেন।`;
@@ -635,7 +701,7 @@ ${topList}
         reply = `### 🎯 চলতি মাসের ক্যাটাগরি বাজেট অবস্থা:\n\n${budgetList}`;
       }
     }
-    // 5. Debts & Loans
+    // 7. Debts & Loans
     else if (
       q.includes('দেনা') ||
       q.includes('পাওনা') ||
@@ -652,7 +718,7 @@ ${topList}
 
 💡 পাওনা টাকা দ্রুত সংগ্রহের তাগাদা দিন এবং দেনা নির্ধারিত তারিখের মধ্যে পরিশোধের জন্য রিমাইন্ডার সেট করে রাখুন।`;
     }
-    // 6. Today's Spending
+    // 8. Today's Spending
     else if (q.includes('আজকে') || q.includes('আজকের') || q.includes('today')) {
       reply = `### 📅 আজকের খরচের হিসাব (${new Date().toLocaleDateString('bn-BD')}):
 
@@ -667,14 +733,14 @@ ${
     : 'আজকে এখন পর্যন্ত কোনো নতুন খরচ রেকর্ড করা হয়নি।'
 }`;
     }
-    // 7. Wallet & Account Balances
+    // 9. Wallet & Account Balances (strictly when asking for balance list)
     else if (
-      q.includes('ব্যালেন্স') ||
-      q.includes('ওয়ালেট') ||
-      q.includes('একাউন্ট') ||
-      q.includes('টাকা কত') ||
-      q.includes('balance') ||
-      q.includes('bank')
+      (q === 'balance' || q === 'ব্যালেন্স') ||
+      (q.includes('ব্যালেন্স') && (q.includes('কত') || q.includes('koto') || q.includes('তালিকা') || q.includes('list') || q.includes('কতো') || q.includes('dekhao') || q.includes('দেখান'))) ||
+      (q.includes('ওয়ালেট') && (q.includes('টাকা') || q.includes('balance') || q.includes('স্থিতি'))) ||
+      (q.includes('একাউন্ট') && (q.includes('টাকা') || q.includes('balance'))) ||
+      q.includes('টাকা কত আছে') ||
+      q.includes('koto taka ache')
     ) {
       const accList = accounts
         .map((a) => `• **${a.name}**: ${formatBDT(a.balance)}`)
@@ -686,7 +752,7 @@ ${accList || 'কোনো অ্যাকাউন্ট যুক্ত নে
 
 • **সর্বমোট স্থিতি:** **${formatBDT(totalWalletBalance)}**`;
     }
-    // 8. General Financial Overview / Fallback
+    // 10. General Financial Overview / Fallback
     else {
       reply = `স্বাগতম! আমি আপনার **টাকা-পয়সা AI আর্থিক সহকারী** 🤖।
 
@@ -694,8 +760,10 @@ ${accList || 'কোনো অ্যাকাউন্ট যুক্ত নে
 • মোট আয়: **${formatBDT(currentIncome)}**
 • মোট ব্যয়: **${formatBDT(currentExpense)}**
 • বর্তমান সঞ্চয়: **${formatBDT(currentNetSavings)}** (${savingsRate}%)
+• মোট ওয়ালেট স্থিতি: **${formatBDT(totalWalletBalance)}**
 
 আপনি আমাকে সরাসরি প্রশ্ন করতে পারেন, যেমন:
+- *"বাকি দিনগুলো পার করতে আমার আর কত টাকা লাগবে?"*
 - *"গত মাসের সাথে এই মাসের আয়-ব্যয় তুলনা করো"*
 - *"৯ তারিখের খরচের হিসাব দাও"*
 - *"কোন খাতে সবচেয়ে বেশি খরচ হয়েছে?"*
@@ -703,7 +771,7 @@ ${accList || 'কোনো অ্যাকাউন্ট যুক্ত নে
 - *"আজকে আমার মোট কত খরচ হলো?"*`;
     }
 
-    return NextResponse.json({ reply, model: 'Local Financial Engine' });
+    return NextResponse.json({ reply: cleanLatex(reply), model: 'Local Financial Engine' });
   } catch (error: any) {
     console.error('Error in AI chat:', error);
     return NextResponse.json(

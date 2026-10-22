@@ -15,6 +15,7 @@ import {
   Maximize2,
   CornerDownLeft,
 } from 'lucide-react';
+import { cleanLatex } from '@/lib/utils';
 
 interface ChatMessage {
   id: string;
@@ -41,13 +42,14 @@ const PRESET_PROMPTS = [
 ];
 
 function formatInline(str: string) {
-  return str
+  return cleanLatex(str)
     .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-slate-900">$1</strong>')
     .replace(/\*(.*?)\*/g, '<em class="italic text-slate-600">$1</em>');
 }
 
 function FormattedChatText({ text }: { text: string }) {
-  const lines = text.split('\n');
+  const sanitizedText = cleanLatex(text || '');
+  const lines = sanitizedText.split('\n');
 
   return (
     <div className="space-y-1.5 text-xs sm:text-[13px] leading-relaxed font-['Hind_Siliguri',sans-serif]">

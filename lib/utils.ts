@@ -138,3 +138,50 @@ export function toLocalDateKey(date: Date | string): string {
     d.getDate()
   ).padStart(2, '0')}`;
 }
+
+// Clean and convert LaTeX mathematical expressions into clean, readable Bengali plain text/markdown
+export function cleanLatex(text: string): string {
+  if (!text) return '';
+  return text
+    // Replace display math $$...$$
+    .replace(/\$\$([\s\S]*?)\$\$/g, (_match, p1) => {
+      return p1.trim();
+    })
+    // Replace inline math $...$
+    .replace(/(^|[^\\])\$([^$\n]+)\$/g, '$1$2')
+    // Handle fractions \frac{a}{b} -> (a / b)
+    .replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, '$1 / $2')
+    // LaTeX text commands
+    .replace(/\\(?:text|mathrm|textrm|textsf|mathtt)\{([^}]*)\}/g, '$1')
+    .replace(/\\(?:textbf|mathbf)\{([^}]*)\}/g, '**$1**')
+    .replace(/\\(?:textit|mathit|emph)\{([^}]*)\}/g, '*$1*')
+    .replace(/\\[a-zA-Z]+\{([^}]*)\}/g, '$1')
+    // Parentheses scaling
+    .replace(/\\left\(/g, '(')
+    .replace(/\\right\)/g, ')')
+    .replace(/\\left\[/g, '[')
+    .replace(/\\right\]/g, ']')
+    // Operators & symbols
+    .replace(/\\times/g, '×')
+    .replace(/\\div/g, '÷')
+    .replace(/\\cdot/g, '•')
+    .replace(/\\approx/g, '≈')
+    .replace(/\\leq?/g, '≤')
+    .replace(/\\geq?/g, '≥')
+    .replace(/\\neq/g, '≠')
+    .replace(/\\pm/g, '±')
+    // Spaces
+    .replace(/\\(?:quad|qquad)/g, '  ')
+    .replace(/\\[,;: ]/g, ' ')
+    // Escaped symbols \$ -> ৳ or $, \% -> %
+    .replace(/\\([%$#&_])/g, '$1')
+    // Clean remaining backslashes
+    .replace(/\\/g, '')
+    // Clean double dollars if any remain
+    .replace(/\$\$/g, '')
+    // Replace Namaskar with Salam
+    .replace(/নমস্কার[!।, ]*/g, 'আসসালামু আলাইকুম! ')
+    // Clean multiple spaces
+    .replace(/ {2,}/g, ' ');
+}
+
