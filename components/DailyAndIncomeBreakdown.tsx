@@ -40,6 +40,48 @@ interface DailyAndIncomeBreakdownProps {
   onNavigateToCalendar?: () => void;
 }
 
+interface CustomDailyTooltipProps {
+  active?: boolean;
+  payload?: any[];
+  label?: string;
+  coordinate?: { x: number; y: number };
+  viewBox?: { width: number; height: number };
+  useBengaliDigits: boolean;
+}
+
+function CustomDailyChartTooltip({
+  active,
+  payload,
+  label,
+  coordinate,
+  viewBox,
+  useBengaliDigits,
+}: CustomDailyTooltipProps) {
+  if (!active || !payload || !payload.length) return null;
+
+  const value = payload[0].value;
+  let alignClass = '-translate-x-1/2';
+  if (coordinate) {
+    if (coordinate.x < 55) {
+      alignClass = 'translate-x-1';
+    } else if (viewBox?.width && coordinate.x > viewBox.width - 55) {
+      alignClass = '-translate-x-[90%]';
+    }
+  }
+
+  return (
+    <div className={`pointer-events-none transition-transform duration-75 ease-out ${alignClass}`}>
+      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/95 text-white shadow-lg border border-slate-700/80 backdrop-blur-md text-[11px] whitespace-nowrap">
+        <span className="text-slate-300 font-medium">{label}</span>
+        <span className="text-slate-500">•</span>
+        <span className="font-bold text-rose-300">
+          {formatBDT(value, { useBengaliDigits })}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function DailyAndIncomeBreakdown({
   transactions,
   useBengaliDigits,
@@ -467,14 +509,20 @@ export function DailyAndIncomeBreakdown({
             <>
               {/* Mini 7-day bar chart */}
               {recent7DaysChartData.length > 0 && (
-                <div className="h-28 w-full mb-3 pt-1">
+                <div className="h-32 w-full mb-3 pt-1">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={recent7DaysChartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                    <BarChart data={recent7DaysChartData} margin={{ top: 22, right: 8, left: -20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="2 2" stroke="#f1f5f9" />
                       <XAxis dataKey="day" stroke="#94a3b8" fontSize={10} />
                       <YAxis stroke="#94a3b8" fontSize={10} />
                       <Tooltip
-                        formatter={(val: number) => [formatBDT(val, { useBengaliDigits }), 'দৈনিক খরচ']}
+                        content={(props: any) => (
+                          <CustomDailyChartTooltip {...props} useBengaliDigits={useBengaliDigits} />
+                        )}
+                        position={{ y: 0 }}
+                        offset={0}
+                        cursor={{ fill: 'rgba(241, 245, 249, 0.75)', radius: 4 }}
+                        isAnimationActive={false}
                       />
                       <Bar dataKey="total" fill="#f43f5e" radius={[3, 3, 0, 0]} />
                     </BarChart>
@@ -546,14 +594,20 @@ export function DailyAndIncomeBreakdown({
             <>
               {/* Monthly bar chart */}
               {monthlyChartData.length > 0 && (
-                <div className="h-28 w-full mb-3 pt-1">
+                <div className="h-32 w-full mb-3 pt-1">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={monthlyChartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                    <BarChart data={monthlyChartData} margin={{ top: 22, right: 8, left: -20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="2 2" stroke="#f1f5f9" />
                       <XAxis dataKey="month" stroke="#94a3b8" fontSize={10} />
                       <YAxis stroke="#94a3b8" fontSize={10} />
                       <Tooltip
-                        formatter={(val: number) => [formatBDT(val, { useBengaliDigits }), 'মাসিক খরচ']}
+                        content={(props: any) => (
+                          <CustomDailyChartTooltip {...props} useBengaliDigits={useBengaliDigits} />
+                        )}
+                        position={{ y: 0 }}
+                        offset={0}
+                        cursor={{ fill: 'rgba(241, 245, 249, 0.75)', radius: 4 }}
+                        isAnimationActive={false}
                       />
                       <Bar dataKey="total" fill="#e11d48" radius={[3, 3, 0, 0]} />
                     </BarChart>
