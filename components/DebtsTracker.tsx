@@ -58,7 +58,10 @@ export function DebtsTracker({
   
   // Inline Debt Settlement State (No full screen modal)
   const [settlingDebtId, setSettlingDebtId] = useState<string | null>(null);
+  const [settleType, setSettleType] = useState<'FULL' | 'PARTIAL'>('FULL');
+  const [settleCustomAmount, setSettleCustomAmount] = useState<string>('');
   const [settleAccountId, setSettleAccountId] = useState<string>('');
+  const [settleNote, setSettleNote] = useState<string>('');
 
   // Inline Add Debt State (No full screen modal)
   const [showInlineAdd, setShowInlineAdd] = useState(false);
@@ -128,6 +131,9 @@ export function DebtsTracker({
         setSettlingDebtId(null);
       } else {
         setSettlingDebtId(debt.id);
+        setSettleType('FULL');
+        setSettleCustomAmount(String(debt.amount));
+        setSettleNote('');
         const defaultAcc = debt.accountId && sortedAccounts.find((a) => a.id === debt.accountId)
           ? debt.accountId
           : (sortedAccounts[0]?.id || '');
@@ -162,23 +168,46 @@ export function DebtsTracker({
   };
 
   const handleConfirmSettle = async (debt: Debt) => {
+    const payload: any = {
+      id: debt.id,
+      accountId: settleAccountId || undefined,
+      settleNote: settleNote.trim() || undefined,
+    };
+
+    if (settleType === 'PARTIAL') {
+      const val = parseFloat(settleCustomAmount);
+      if (isNaN(val) || val <= 0) {
+        alert('সঠিক পরিশোধের পরিমাণ লিখুন');
+        return;
+      }
+      if (val > debt.amount) {
+        alert(`পরিশোধের পরিমাণ মোট বকেয়ার (৳${debt.amount}) চেয়ে বেশি হতে পারে না`);
+        return;
+      }
+      payload.settleAmount = val;
+    } else {
+      payload.status = 'SETTLED';
+    }
+
     setActionLoadingId(debt.id);
     try {
       const res = await fetch('/api/debts', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: debt.id,
-          status: 'SETTLED',
-          accountId: settleAccountId || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         setSettlingDebtId(null);
+        setSettleCustomAmount('');
+        setSettleNote('');
         onRefresh();
+      } else {
+        const err = await res.json();
+        alert(err.error || 'পরিশোধ সম্পন্ন করতে সমস্যা হয়েছে');
       }
     } catch (err) {
       console.error(err);
+      alert('সার্ভার এরর');
     } finally {
       setActionLoadingId(null);
     }
@@ -655,17 +684,129 @@ export function DebtsTracker({
                       </button>
                     </div>
 
-                    <div className="text-xs bg-white/80 p-2.5 rounded-xl border border-amber-200/50">
-                      {isReceivable ? (
-                        <p className="text-emerald-700 font-medium leading-relaxed">
-                          ℹ️ {d.personName}-এর থেকে <strong>{formatBDT(d.amount, { useBengaliDigits })}</strong> ফেরত পেলে এটি আপনার নির্বাচিত ওয়ালেটে জমা হবে এবং মোট নগদ ব্যালেন্স বৃদ্ধি পাবে।
-                        </p>
-                      ) : (
-                        <p className="text-rose-700 font-medium leading-relaxed">
-                          ⚠️ {d.personName}-কে <strong>{formatBDT(d.amount, { useBengaliDigits })}</strong> পরিশোধ করলে আপনার নির্বাচিত ওয়ালেট থেকে এই পরিমাণ টাকা স্বয়ংক্রিয়ভাবে মাইনাস হয়ে যাবে।
-                        </p>
-                      )}
+                    {/* Settlement Type Toggle (Full vs Partial) */}
+                    <div className="flex p-1 bg-white border border-amber-200/90 rounded-xl gap-1 shadow-2xs">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSettleType('FULL');
+                          setSettleCustomAmount(String(d.amount));
+                        }}
+                        className={`flex-1 py-1.5 px-2 text-xs font-bold rounded-lg transition-all duration-200 cursor-pointer ${
+                          settleType === 'FULL'
+                            ? isReceivable
+                              ? 'bg-emerald-600 text-white shadow-xs'
+                              : 'bg-rose-600 text-white shadow-xs'
+                            : 'text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        ✓ সম্পূর্ণ পরিশোধ ({formatBDT(d.amount, { useBengaliDigits })})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSettleType('PARTIAL');
+                          if (!settleCustomAmount || parseFloat(settleCustomAmount) >= d.amount) {
+                            setSettleCustomAmount(String(Math.round(d.amount / 2)));
+                          }
+                        }}
+                        className={`flex-1 py-1.5 px-2 text-xs font-bold rounded-lg transition-all duration-200 cursor-pointer ${
+                          settleType === 'PARTIAL'
+                            ? isReceivable
+                              ? 'bg-emerald-600 text-white shadow-xs'
+                              : 'bg-rose-600 text-white shadow-xs'
+                            : 'text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        ✂️ আংশিক পরিশোধ (Partial)
+                      </button>
                     </div>
+
+                    {/* Partial Amount Input & Quick Chips */}
+                    {settleType === 'PARTIAL' ? (
+                      <div className="space-y-2.5 bg-white/95 p-3 rounded-xl border border-amber-200/80">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-[11px] font-bold text-slate-700">
+                            আংশিক পরিশোধের পরিমাণ (টাকা) *
+                          </label>
+                          <span className="text-[10px] text-slate-400">
+                            মোট বকেয়া: {formatBDT(d.amount, { useBengaliDigits })}
+                          </span>
+                        </div>
+
+                        <div className="relative">
+                          <span className="absolute left-3 top-2 text-sm font-bold text-slate-400">৳</span>
+                          <input
+                            type="number"
+                            placeholder="যেমন: ৫০০"
+                            value={settleCustomAmount}
+                            onChange={(e) => setSettleCustomAmount(e.target.value)}
+                            max={d.amount}
+                            min={1}
+                            className="w-full text-sm font-bold pl-8 pr-3 py-1.5 border border-slate-200 rounded-xl focus:outline-emerald-500 bg-white"
+                          />
+                        </div>
+
+                        {/* Quick Percentage Chips */}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {[
+                            { label: '২৫%', pct: 0.25 },
+                            { label: '৫০%', pct: 0.5 },
+                            { label: '৭৫%', pct: 0.75 },
+                          ].map((chip) => {
+                            const val = Math.round(d.amount * chip.pct);
+                            return (
+                              <button
+                                key={chip.label}
+                                type="button"
+                                onClick={() => setSettleCustomAmount(String(val))}
+                                className="px-2.5 py-1 text-[11px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg transition cursor-pointer active:scale-95"
+                              >
+                                {chip.label} ({formatBDT(val, { useBengaliDigits })})
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Live calculation feedback */}
+                        {(() => {
+                          const val = parseFloat(settleCustomAmount) || 0;
+                          const remaining = Math.max(0, d.amount - val);
+                          const isOver = val > d.amount;
+                          return (
+                            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                              {isOver ? (
+                                <span className="text-rose-600 font-bold text-[11px]">
+                                  ⚠️ বকেয়ার চেয়ে বেশি (৳{d.amount}) পরিশোধ সম্ভব নয়
+                                </span>
+                              ) : (
+                                <>
+                                  <span className="text-slate-600">
+                                    এখন পরিশোধ: <strong className="text-slate-800">{formatBDT(val, { useBengaliDigits })}</strong>
+                                  </span>
+                                  <span className="text-amber-800 font-semibold">
+                                    বাকি থাকবে: <strong className="text-rose-600 font-bold">{formatBDT(remaining, { useBengaliDigits })}</strong>
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    ) : (
+                      /* Full settlement notice */
+                      <div className="text-xs bg-white/80 p-2.5 rounded-xl border border-amber-200/50">
+                        {isReceivable ? (
+                          <p className="text-emerald-700 font-medium leading-relaxed">
+                            ℹ️ {d.personName}-এর থেকে পুরো <strong>{formatBDT(d.amount, { useBengaliDigits })}</strong> ফেরত পেলে এটি আপনার নির্বাচিত ওয়ালেটে জমা হবে এবং ধারটি সম্পূর্ণ 'পরিশোধিত' তালিকায় যাবে।
+                          </p>
+                        ) : (
+                          <p className="text-rose-700 font-medium leading-relaxed">
+                            ⚠️ {d.personName}-কে সম্পূর্ণ <strong>{formatBDT(d.amount, { useBengaliDigits })}</strong> পরিশোধ করলে আপনার নির্বাচিত ওয়ালেট থেকে এই পরিমাণ টাকা স্বয়ংক্রিয়ভাবে কর্তন হবে এবং দেনাটি পরিশোধিত হবে।
+                          </p>
+                        )}
+                      </div>
+                    )}
 
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-700 mb-1">
@@ -690,6 +831,19 @@ export function DebtsTracker({
                       )}
                     </div>
 
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                        পরিশোধের নোট / বিবরণ (ঐচ্ছিক)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="যেমন: আংশিক পরিশোধ, বাকি সামনের সপ্তাহে দেবে"
+                        value={settleNote}
+                        onChange={(e) => setSettleNote(e.target.value)}
+                        className="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-xl focus:outline-emerald-500 bg-white"
+                      />
+                    </div>
+
                     <div className="flex items-center gap-2 pt-1">
                       <button
                         type="button"
@@ -698,18 +852,30 @@ export function DebtsTracker({
                       >
                         বাতিল
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => handleConfirmSettle(d)}
-                        disabled={actionLoadingId === d.id}
-                        className={`flex-1 py-2 px-3 text-xs font-bold text-white rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer ${
-                          !isReceivable
-                            ? 'bg-rose-600 hover:bg-rose-700'
-                            : 'bg-emerald-600 hover:bg-emerald-700'
-                        }`}
-                      >
-                        {actionLoadingId === d.id ? 'প্রসেসিং...' : 'পরিশোধ নিশ্চিত করুন'}
-                      </button>
+                      {(() => {
+                        const numVal =
+                          settleType === 'PARTIAL' ? parseFloat(settleCustomAmount) || 0 : d.amount;
+                        const isInvalid =
+                          settleType === 'PARTIAL' && (numVal <= 0 || numVal > d.amount);
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => handleConfirmSettle(d)}
+                            disabled={actionLoadingId === d.id || isInvalid}
+                            className={`flex-1 py-2 px-3 text-xs font-bold text-white rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer ${
+                              !isReceivable
+                                ? 'bg-rose-600 hover:bg-rose-700'
+                                : 'bg-emerald-600 hover:bg-emerald-700'
+                            }`}
+                          >
+                            {actionLoadingId === d.id
+                              ? 'প্রসেসিং...'
+                              : settleType === 'PARTIAL'
+                              ? `${formatBDT(numVal, { useBengaliDigits })} আংশিক পরিশোধ নিশ্চিত করুন`
+                              : 'সম্পূর্ণ পরিশোধ নিশ্চিত করুন'}
+                          </button>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>

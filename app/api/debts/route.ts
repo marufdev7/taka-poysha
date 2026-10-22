@@ -193,7 +193,7 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json();
-    const { id, status, amount, dueDate, note, accountId } = body;
+    const { id, status, amount, dueDate, note, accountId, settleAmount, settleNote } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Debt ID is required' }, { status: 400 });
@@ -212,9 +212,37 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'এই দেনা-পাওনা পরিবর্তনের অনুমতি নেই' }, { status: 403 });
     }
 
+    // Check if this is a settlement action (Full or Partial)
+    const hasSettleAmount = settleAmount !== undefined && settleAmount !== null && settleAmount !== '';
+    const numSettle = hasSettleAmount ? parseFloat(settleAmount) : null;
+
+    if (numSettle !== null) {
+      if (isNaN(numSettle) || numSettle <= 0) {
+        return NextResponse.json({ error: 'সঠিক পরিশোধের পরিমাণ দিন' }, { status: 400 });
+      }
+      if (numSettle > existingDebt.amount) {
+        return NextResponse.json(
+          { error: `পরিশোধের পরিমাণ মোট বকেয়ার (৳${existingDebt.amount}) চেয়ে বেশি হতে পারে না` },
+          { status: 400 }
+        );
+      }
+    }
+
+    const isSettlementAction =
+      existingDebt.status === 'PENDING' && (status === 'SETTLED' || numSettle !== null);
+
+    const isFullSettle =
+      isSettlementAction && (numSettle === null || numSettle >= existingDebt.amount || status === 'SETTLED');
+    const paymentAmount = isSettlementAction
+      ? isFullSettle
+        ? existingDebt.amount
+        : numSettle!
+      : 0;
+    const remainingAmount = isSettlementAction ? existingDebt.amount - paymentAmount : existingDebt.amount;
+
     const updated = await prisma.$transaction(async (tx) => {
-      // If status is transitioning from PENDING to SETTLED
-      if (status === 'SETTLED' && existingDebt.status !== 'SETTLED') {
+      // If settlement action (Full or Partial)
+      if (isSettlementAction && paymentAmount > 0) {
         let targetAccount = null;
         if (accountId) {
           targetAccount = await tx.account.findUnique({ where: { id: accountId } });
@@ -246,7 +274,7 @@ export async function PATCH(request: Request) {
             // Repaying a debt -> Money leaves the wallet!
             await tx.account.update({
               where: { id: targetAccount.id },
-              data: { balance: { decrement: existingDebt.amount } },
+              data: { balance: { decrement: paymentAmount } },
             });
 
             let category = await tx.category.findFirst({
@@ -268,6 +296,10 @@ export async function PATCH(request: Request) {
             }
 
             if (effectiveHouseholdId) {
+              const txNote = isFullSettle
+                ? `দেনা পরিশোধ: ${existingDebt.personName}${existingDebt.note ? ` (${existingDebt.note})` : ''}`
+                : `আংশিক দেনা পরিশোধ: ${existingDebt.personName} (পরিশোধ: ৳${paymentAmount}, অবশিষ্ট: ৳${remainingAmount})${settleNote ? ` - ${settleNote}` : ''}`;
+
               await tx.transaction.create({
                 data: {
                   userId: existingDebt.userId,
@@ -275,9 +307,9 @@ export async function PATCH(request: Request) {
                   accountId: targetAccount.id,
                   categoryId: category ? category.id : null,
                   type: 'EXPENSE',
-                  amount: existingDebt.amount,
+                  amount: paymentAmount,
                   date: new Date(),
-                  note: `দেনা পরিশোধ: ${existingDebt.personName}${existingDebt.note ? ` (${existingDebt.note})` : ''}`,
+                  note: txNote,
                   visibility: 'FAMILY',
                 },
               });
@@ -286,7 +318,7 @@ export async function PATCH(request: Request) {
             // Receiving repayment -> Money ENTERS the wallet! Cash/wallet balance increases!
             await tx.account.update({
               where: { id: targetAccount.id },
-              data: { balance: { increment: existingDebt.amount } },
+              data: { balance: { increment: paymentAmount } },
             });
 
             let category = await tx.category.findFirst({
@@ -308,6 +340,10 @@ export async function PATCH(request: Request) {
             }
 
             if (effectiveHouseholdId) {
+              const txNote = isFullSettle
+                ? `পাওনা আদায় (ধার ফেরত): ${existingDebt.personName}${existingDebt.note ? ` (${existingDebt.note})` : ''}`
+                : `আংশিক পাওনা আদায়: ${existingDebt.personName} (আদায়: ৳${paymentAmount}, অবশিষ্ট: ৳${remainingAmount})${settleNote ? ` - ${settleNote}` : ''}`;
+
               await tx.transaction.create({
                 data: {
                   userId: existingDebt.userId,
@@ -315,9 +351,9 @@ export async function PATCH(request: Request) {
                   accountId: targetAccount.id,
                   categoryId: category ? category.id : null,
                   type: 'INCOME',
-                  amount: existingDebt.amount,
+                  amount: paymentAmount,
                   date: new Date(),
-                  note: `পাওনা আদায় (ধার ফেরত): ${existingDebt.personName}${existingDebt.note ? ` (${existingDebt.note})` : ''}`,
+                  note: txNote,
                   visibility: 'FAMILY',
                 },
               });
@@ -355,10 +391,25 @@ export async function PATCH(request: Request) {
       }
 
       const updateData: any = {};
-      if (status) updateData.status = status;
-      if (amount) updateData.amount = parseFloat(amount);
+      if (isSettlementAction) {
+        if (isFullSettle) {
+          updateData.status = 'SETTLED';
+        } else {
+          updateData.status = 'PENDING';
+          updateData.amount = remainingAmount;
+          if (settleNote) {
+            updateData.note = existingDebt.note
+              ? `${existingDebt.note} (আংশিক: ৳${paymentAmount})`
+              : `আংশিক পরিশোধ: ৳${paymentAmount}`;
+          }
+        }
+      } else {
+        if (status) updateData.status = status;
+        if (amount) updateData.amount = parseFloat(amount);
+      }
+
       if (dueDate) updateData.dueDate = parseDateSafe(dueDate);
-      if (note !== undefined) updateData.note = note;
+      if (note !== undefined && !isSettlementAction) updateData.note = note;
 
       return await tx.debt.update({
         where: { id },
