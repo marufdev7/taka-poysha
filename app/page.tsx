@@ -11,6 +11,7 @@ import { TransactionList } from '@/components/TransactionList';
 import { AddTransactionModal } from '@/components/AddTransactionModal';
 import { AiReportModal } from '@/components/AiReportModal';
 import { EditProfileModal } from '@/components/EditProfileModal';
+import { SettingsModal } from '@/components/SettingsModal';
 import { OnboardingSetup } from '@/components/OnboardingSetup';
 import { AddMemberModal } from '@/components/AddMemberModal';
 import { DebtsTracker } from '@/components/DebtsTracker';
@@ -46,6 +47,7 @@ export default function HomePage() {
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isAiChatOpen, setIsAiChatOpen] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAddDebtModalOpen, setIsAddDebtModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<any | null>(null);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
@@ -352,7 +354,7 @@ export default function HomePage() {
         onOpenAddModal={handleOpenManualAddModal}
         onOpenAiModal={() => setIsAiModalOpen(true)}
         onOpenAiChat={() => setIsAiChatOpen(true)}
-        onResetData={handleReset}
+        onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenEditProfile={() => setIsEditProfileOpen(true)}
         onLogout={handleLogout}
       />
@@ -723,6 +725,19 @@ export default function HomePage() {
         currentUser={currentUser}
         household={household}
         onSuccess={() => fetchData(activeUserId)}
+      />
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        currentUser={currentUser}
+        household={household}
+        useBengaliDigits={useBengaliDigits}
+        onToggleBengaliDigits={setUseBengaliDigits}
+        onOpenEditProfile={() => setIsEditProfileOpen(true)}
+        onResetData={handleReset}
+        isHouseholdAdmin={isHouseholdAdmin}
       />
 
       {/* Add Family Member Modal (Admin only) */}

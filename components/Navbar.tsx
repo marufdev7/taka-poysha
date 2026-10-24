@@ -11,6 +11,7 @@ import {
   Sparkles,
   Bot,
   LogOut,
+  Settings,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -24,7 +25,7 @@ interface NavbarProps {
   onOpenAddModal: () => void;
   onOpenAiModal: () => void;
   onOpenAiChat?: () => void;
-  onResetData: () => void;
+  onOpenSettings: () => void;
   onOpenEditProfile: () => void;
   onLogout?: () => void;
 }
@@ -40,7 +41,7 @@ export function Navbar({
   onOpenAddModal,
   onOpenAiModal,
   onOpenAiChat,
-  onResetData,
+  onOpenSettings,
   onOpenEditProfile,
   onLogout,
 }: NavbarProps) {
@@ -187,18 +188,20 @@ export function Navbar({
                           onOpenEditProfile();
                           setIsUserMenuOpen(false);
                         }}
-                        className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 transition font-medium"
+                        className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition font-medium"
                       >
-                        <span>✏️ নাম ও পরিবার পরিবর্তন</span>
+                        <User className="w-3.5 h-3.5 text-slate-500" />
+                        <span>প্রোফাইল পরিবর্তন</span>
                       </button>
                       <button
                         onClick={() => {
-                          onResetData();
+                          onOpenSettings();
                           setIsUserMenuOpen(false);
                         }}
-                        className="w-full text-left px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 flex items-center gap-1.5 transition font-medium"
+                        className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition font-medium"
                       >
-                        <span>🗑️ সব ডাটা মুছুন (রিসেট)</span>
+                        <Settings className="w-3.5 h-3.5 text-slate-500" />
+                        <span>সেটিংস ও ডাটা সুরক্ষা</span>
                       </button>
                       {onLogout && (
                         <button
@@ -206,7 +209,7 @@ export function Navbar({
                             onLogout();
                             setIsUserMenuOpen(false);
                           }}
-                          className="w-full text-left px-3 py-1.5 text-xs text-slate-600 hover:text-rose-600 hover:bg-slate-50 flex items-center gap-1.5 transition font-semibold border-t border-slate-100 mt-1 pt-1.5"
+                          className="w-full text-left px-3 py-1.5 text-xs text-slate-600 hover:text-rose-600 hover:bg-slate-50 flex items-center gap-2 transition font-semibold border-t border-slate-100 mt-1 pt-1.5"
                         >
                           <LogOut className="w-3.5 h-3.5 text-slate-400" />
                           <span>লক / লগআউট (Logout)</span>
