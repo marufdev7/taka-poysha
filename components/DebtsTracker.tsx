@@ -12,6 +12,8 @@ import {
   Wallet,
   X,
   FileText,
+  CalendarDays,
+  Check,
 } from 'lucide-react';
 import { formatBDT, formatDate, getLocalDateString } from '@/lib/utils';
 
@@ -62,6 +64,14 @@ export function DebtsTracker({
   const [settleCustomAmount, setSettleCustomAmount] = useState<string>('');
   const [settleAccountId, setSettleAccountId] = useState<string>('');
   const [settleNote, setSettleNote] = useState<string>('');
+  const [settleDate, setSettleDate] = useState<string>(() => getLocalDateString(new Date()));
+  const [settleNextDueDate, setSettleNextDueDate] = useState<string>('');
+
+  // Reschedule Due Date State
+  const [reschedulingDebtId, setReschedulingDebtId] = useState<string | null>(null);
+  const [rescheduleDueDate, setRescheduleDueDate] = useState<string>('');
+  const [rescheduleNote, setRescheduleNote] = useState<string>('');
+  const [isSavingReschedule, setIsSavingReschedule] = useState(false);
 
   // Inline Add Debt State (No full screen modal)
   const [showInlineAdd, setShowInlineAdd] = useState(false);
@@ -131,8 +141,13 @@ export function DebtsTracker({
         setSettlingDebtId(null);
       } else {
         setSettlingDebtId(debt.id);
+        setReschedulingDebtId(null);
         setSettleType('FULL');
         setSettleCustomAmount(String(debt.amount));
+        setSettleDate(getLocalDateString(new Date()));
+        const nextW = new Date();
+        nextW.setDate(nextW.getDate() + 7);
+        setSettleNextDueDate(getLocalDateString(nextW));
         setSettleNote('');
         const defaultAcc = debt.accountId && sortedAccounts.find((a) => a.id === debt.accountId)
           ? debt.accountId
@@ -143,6 +158,45 @@ export function DebtsTracker({
       if (confirm('আপনি কি এই পরিশোধ বাতিল করে পুনরায় বাকি করতে চান? এতে ওয়ালেট ব্যালেন্স সমন্বয় ফিরে আসবে।')) {
         handleUnsettle(debt.id);
       }
+    }
+  };
+
+  const handleOpenReschedule = (debt: Debt) => {
+    if (reschedulingDebtId === debt.id) {
+      setReschedulingDebtId(null);
+    } else {
+      setReschedulingDebtId(debt.id);
+      setSettlingDebtId(null);
+      setRescheduleDueDate(getLocalDateString(new Date(debt.dueDate)));
+      setRescheduleNote(debt.note || '');
+    }
+  };
+
+  const handleSaveReschedule = async (debtId: string) => {
+    if (!rescheduleDueDate) return;
+    setIsSavingReschedule(true);
+    try {
+      const res = await fetch('/api/debts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: debtId,
+          dueDate: rescheduleDueDate,
+          note: rescheduleNote.trim() || undefined,
+        }),
+      });
+      if (res.ok) {
+        setReschedulingDebtId(null);
+        onRefresh();
+      } else {
+        const err = await res.json();
+        alert(err.error || 'তারিখ পরিবর্তন করতে সমস্যা হয়েছে');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('সার্ভার এরর');
+    } finally {
+      setIsSavingReschedule(false);
     }
   };
 
@@ -172,6 +226,7 @@ export function DebtsTracker({
       id: debt.id,
       accountId: settleAccountId || undefined,
       settleNote: settleNote.trim() || undefined,
+      settleDate: settleDate || undefined,
     };
 
     if (settleType === 'PARTIAL') {
@@ -185,6 +240,9 @@ export function DebtsTracker({
         return;
       }
       payload.settleAmount = val;
+      if (settleNextDueDate) {
+        payload.dueDate = settleNextDueDate;
+      }
     } else {
       payload.status = 'SETTLED';
     }
@@ -570,6 +628,7 @@ export function DebtsTracker({
             const isReceivable = d.type === 'RECEIVABLE';
             const daysBadge = getDaysDiffText(d.dueDate, d.status);
             const isSettlingThis = settlingDebtId === d.id;
+            const isReschedulingThis = reschedulingDebtId === d.id;
 
             return (
               <div key={d.id} className="py-2.5">
@@ -624,6 +683,25 @@ export function DebtsTracker({
                       {formatBDT(d.amount, { useBengaliDigits })}
                     </div>
 
+                    {d.status === 'PENDING' && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenReschedule(d)}
+                        disabled={actionLoadingId === d.id}
+                        className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-all duration-200 active:scale-95 cursor-pointer ${
+                          isReschedulingThis
+                            ? 'bg-amber-600 text-white border-amber-600 shadow-xs ring-2 ring-amber-500/20'
+                            : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+                        }`}
+                        title="পরিশোধের নির্ধারিত তারিখ পরিবর্তন করুন"
+                      >
+                        <CalendarDays className="w-3.5 h-3.5 text-amber-600" />
+                        <span className="hidden sm:inline">
+                          {isReschedulingThis ? 'বন্ধ করুন' : 'তারিখ পরিবর্তন'}
+                        </span>
+                      </button>
+                    )}
+
                     <button
                       type="button"
                       onClick={() => handleInitiateSettle(d)}
@@ -652,6 +730,107 @@ export function DebtsTracker({
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
+                  </div>
+                </div>
+
+                {/* Inline Reschedule Due Date Form */}
+                <div className={`inline-collapse-wrapper ${isReschedulingThis ? 'open mt-2.5' : ''}`}>
+                  <div className="inline-collapse-content">
+                    <div className="mx-2 p-3.5 sm:p-4 rounded-2xl bg-amber-50/90 border border-amber-200/90 shadow-2xs space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-amber-200/70">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+                            <CalendarDays className="w-3.5 h-3.5" />
+                          </div>
+                          <div>
+                            <span className="font-bold text-xs sm:text-sm text-slate-800">
+                              পরিশোধের নির্ধারিত তারিখ পরিবর্তন (Reschedule)
+                            </span>
+                            <span className="text-[11px] text-amber-800 ml-2">
+                              (বর্তমান তারিখ: {formatDate(d.dueDate)})
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setReschedulingDebtId(null)}
+                          className="p-1 text-slate-400 hover:text-slate-600 hover:bg-amber-100/60 rounded-lg transition cursor-pointer"
+                          title="বাতিল করুন"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                            নতুন নির্ধারিত তারিখ নির্বাচন করুন *
+                          </label>
+                          <input
+                            type="date"
+                            value={rescheduleDueDate}
+                            onChange={(e) => setRescheduleDueDate(e.target.value)}
+                            className="w-full text-xs font-medium px-2.5 py-2 border border-slate-200 rounded-xl bg-white focus:outline-emerald-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                            নোট / কারণ (ঐচ্ছিক)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="যেমন: আগামী সপ্তাহে দেবে বলেছে"
+                            value={rescheduleNote}
+                            onChange={(e) => setRescheduleNote(e.target.value)}
+                            className="w-full text-xs px-2.5 py-2 border border-slate-200 rounded-xl focus:outline-emerald-500 bg-white"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Quick Day Chips */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[11px] text-amber-900 font-semibold">সহজে বাছুন:</span>
+                        {[
+                          { label: '+৩ দিন', days: 3 },
+                          { label: '+৭ দিন (১ সপ্তাহ)', days: 7 },
+                          { label: '+১৫ দিন', days: 15 },
+                          { label: '+১ মাস', days: 30 },
+                        ].map((chip) => (
+                          <button
+                            key={chip.label}
+                            type="button"
+                            onClick={() => {
+                              const nd = new Date();
+                              nd.setDate(nd.getDate() + chip.days);
+                              setRescheduleDueDate(getLocalDateString(nd));
+                            }}
+                            className="px-2.5 py-1 text-[11px] font-bold bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg transition active:scale-95 cursor-pointer shadow-2xs"
+                          >
+                            {chip.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-1 border-t border-amber-200/60">
+                        <button
+                          type="button"
+                          onClick={() => setReschedulingDebtId(null)}
+                          className="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                        >
+                          বাতিল
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveReschedule(d.id)}
+                          disabled={isSavingReschedule || !rescheduleDueDate}
+                          className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white rounded-xl shadow-xs transition active:scale-95 disabled:opacity-50 cursor-pointer"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>{isSavingReschedule ? 'সংরক্ষণ হচ্ছে...' : 'নতুন তারিখ সংরক্ষণ করুন'}</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -814,28 +993,59 @@ export function DebtsTracker({
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                        {isReceivable
-                          ? 'কোন ওয়ালেটে টাকা ফেরত জমা করবেন?'
-                          : 'কোন ওয়ালেট থেকে টাকা পরিশোধ করবেন?'}
-                      </label>
-                      {sortedAccounts && sortedAccounts.length > 0 ? (
-                        <select
-                          value={settleAccountId}
-                          onChange={(e) => setSettleAccountId(e.target.value)}
+                    {/* Payment Date & Wallet Selection */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                          পরিশোধের তারিখ (Payment Date) *
+                        </label>
+                        <input
+                          type="date"
+                          value={settleDate}
+                          onChange={(e) => setSettleDate(e.target.value)}
                           className="w-full text-xs p-2.5 border border-slate-200 rounded-xl bg-white focus:outline-emerald-500 font-medium"
-                        >
-                          {sortedAccounts.map((acc) => (
-                            <option key={acc.id} value={acc.id}>
-                              {acc.name} (বর্তমান ব্যালেন্স: {formatBDT(acc.balance, { useBengaliDigits })})
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <p className="text-xs text-slate-400">ডিফল্ট ক্যাশ একাউন্ট ব্যবহার করা হবে</p>
-                      )}
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                          {isReceivable
+                            ? 'কোন ওয়ালেটে টাকা ফেরত জমা করবেন?'
+                            : 'কোন ওয়ালেট থেকে টাকা পরিশোধ করবেন?'}
+                        </label>
+                        {sortedAccounts && sortedAccounts.length > 0 ? (
+                          <select
+                            value={settleAccountId}
+                            onChange={(e) => setSettleAccountId(e.target.value)}
+                            className="w-full text-xs p-2.5 border border-slate-200 rounded-xl bg-white focus:outline-emerald-500 font-medium"
+                          >
+                            {sortedAccounts.map((acc) => (
+                              <option key={acc.id} value={acc.id}>
+                                {acc.name} (বর্তমান ব্যালেন্স: {formatBDT(acc.balance, { useBengaliDigits })})
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <p className="text-xs text-slate-400">ডিফল্ট ক্যাশ একাউন্ট ব্যবহার করা হবে</p>
+                        )}
+                      </div>
                     </div>
+
+                    {/* In Partial Settlement: allow setting next due date */}
+                    {settleType === 'PARTIAL' && (
+                      <div>
+                        <label className="block text-[11px] font-semibold text-amber-900 mb-1">
+                          বাকি টাকার পরবর্তী নির্ধারিত পরিশোধের তারিখ (ঐচ্ছিক)
+                        </label>
+                        <input
+                          type="date"
+                          value={settleNextDueDate}
+                          onChange={(e) => setSettleNextDueDate(e.target.value)}
+                          className="w-full text-xs p-2.5 border border-amber-300 rounded-xl bg-white focus:outline-emerald-500 font-medium"
+                        />
+                      </div>
+                    )}
 
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-700 mb-1">

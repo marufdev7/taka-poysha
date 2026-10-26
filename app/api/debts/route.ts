@@ -193,7 +193,7 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json();
-    const { id, status, amount, dueDate, note, accountId, settleAmount, settleNote } = body;
+    const { id, status, amount, dueDate, note, accountId, settleAmount, settleNote, settleDate } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Debt ID is required' }, { status: 400 });
@@ -270,6 +270,8 @@ export async function PATCH(request: Request) {
         }
 
         if (targetAccount) {
+          const txDate = settleDate ? parseDateSafe(settleDate) : new Date();
+
           if (existingDebt.type === 'PAYABLE') {
             // Repaying a debt -> Money leaves the wallet!
             await tx.account.update({
@@ -308,7 +310,7 @@ export async function PATCH(request: Request) {
                   categoryId: category ? category.id : null,
                   type: 'EXPENSE',
                   amount: paymentAmount,
-                  date: new Date(),
+                  date: txDate,
                   note: txNote,
                   visibility: 'FAMILY',
                 },
@@ -352,7 +354,7 @@ export async function PATCH(request: Request) {
                   categoryId: category ? category.id : null,
                   type: 'INCOME',
                   amount: paymentAmount,
-                  date: new Date(),
+                  date: txDate,
                   note: txNote,
                   visibility: 'FAMILY',
                 },
